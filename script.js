@@ -57,177 +57,12 @@ const regionCircles = {
 };
 
 
-// === PATCH v8: Silk Road polyline support ===
-// Define route keys that should render as polylines instead of point/circle markers
-const silkRoadRoutes = {
-  '絲路': {"type": "polyline", "coords": [[34.3416, 108.9398], [36.0611, 103.8343], [40.1421, 94.6619], [42.826, 93.515], [42.949, 89.19], [41.72, 82.96], [39.467, 75.993], [40.513, 72.816], [39.627, 66.974], [39.773, 64.425], [36.2605, 59.6168], [35.6892, 51.389], [33.3152, 44.3661], [33.5138, 36.2765], [36.206, 36.157], [41.0082, 28.9784]]},
-  '以線條呈現絲綢之路路徑': {"type": "polyline", "coords": [[34.3416, 108.9398], [36.0611, 103.8343], [40.1421, 94.6619], [42.826, 93.515], [42.949, 89.19], [41.72, 82.96], [39.467, 75.993], [40.513, 72.816], [39.627, 66.974], [39.773, 64.425], [36.2605, 59.6168], [35.6892, 51.389], [33.3152, 44.3661], [33.5138, 36.2765], [36.206, 36.157], [41.0082, 28.9784]]}
-};
-
-// Compute Silk Road midpoint (simple average of coords)
-const __getSilkCoords = silkRoadRoutes['絲路'] ? silkRoadRoutes['絲路'].coords
-                        : ((silkRoadRoutes['以線條呈現絲綢之路路徑'] || {}).coords || []);
-let silkMidpoint = null;
-
-// Compute geodesic distance (haversine) in meters
-function __hv(lat1, lon1, lat2, lon2){
-  const toRad = (d)=>d*Math.PI/180;
-  const R = 6371000;
-  const dLat = toRad(lat2-lat1);
-  const dLon = toRad(lon2-lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R*c;
-}
-// Linear interpolate between two lat/lngs
-function __lerp(p1, p2, t){
-  return [ p1[0] + (p2[0]-p1[0])*t, p1[1] + (p2[1]-p1[1])*t ];
-}
-// Find the midpoint along the polyline by length
-let silkMidpointOnPath = null;
-(function(){
-  const coords = __getSilkCoords;
-  if (!Array.isArray(coords) || coords.length < 2) return;
-  let segLens = [];
-  let total = 0;
-  for (let i=0; i<coords.length-1; i++){
-    const a = coords[i], b = coords[i+1];
-    const d = __hv(a[0],a[1],b[0],b[1]);
-    segLens.push(d);
-    total += d;
-  }
-  let half = total/2;
-  for (let i=0; i<segLens.length; i++){
-    if (half > segLens[i]) { half -= segLens[i]; continue; }
-    const a = coords[i], b = coords[i+1];
-    const t = segLens[i] === 0 ? 0 : (half/segLens[i]);
-    silkMidpointOnPath = __lerp(a,b,t);
-    break;
-  }
-  if (!silkMidpointOnPath) silkMidpointOnPath = coords[Math.floor(coords.length/2)];
-})();
-
-if (Array.isArray(__getSilkCoords) && __getSilkCoords.length > 0) {
-  let __sumLat = 0, __sumLng = 0;
-  __getSilkCoords.forEach(c => { __sumLat += c[0]; __sumLng += c[1]; });
-  silkMidpoint = [__sumLat / __getSilkCoords.length, __sumLng / __getSilkCoords.length];
-}
-
-
-
-
-// === PATCH v7: Map '雅典；羅馬' and '雅典、羅馬' to same center & radius as '義大利、希臘' ===
+// === PATCH v9: Map '台灣北部' to a circle centered on New Taipei City with radius covering Yilan & Hsinchu ===
+// New Taipei City approx center (~25.016, 121.465)
 if (typeof regionCircles !== 'undefined') {
-  // Ensure '義大利、希臘' exists with correct radius (mirrors prior patches)
-  if (!regionCircles['義大利、希臘']) {
-    if (!regionCircles['沙烏地阿拉伯']) {
-      if (!regionCircles['中南美洲']) {
-        regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
-      }
-      const _tmp_latam = regionCircles['中南美洲'].radius || 1800000;
-      regionCircles['沙烏地阿拉伯'] = { center: [23.9, 45.1], radius: Math.max(300000, Math.floor(_tmp_latam * 0.6)) };
-    }
-    const _ksa_r = regionCircles['沙烏地阿拉伯'].radius;
-    regionCircles['義大利、希臘'] = { center: [39.9433, 18.11195], radius: _ksa_r };
-  }
-  const _itgr = regionCircles['義大利、希臘'];
-  regionCircles['雅典；羅馬'] = { center: _itgr.center, radius: _itgr.radius };
-  regionCircles['雅典、羅馬'] = { center: _itgr.center, radius: _itgr.radius };
+  regionCircles['台灣北部'] = { center: [25.016, 121.465], radius: 120000 }; // 120 km to cover Yilan & Hsinchu
 }
-// === END PATCH v7 ===
-
-
-
-// === PATCH v6-fix: Ensure Excel key '威尼斯、熱那亞、批薩' is mapped (Excel uses 那, not 內) ===
-if (typeof regionCircles !== 'undefined') {
-  // Reuse the same centroid and radius as the '威尼斯、熱內亞、批薩' entry if present;
-  // otherwise, compute afresh and fallback to '義大利、希臘' radius.
-  const _vgp_center = [44.521033, 10.555133];
-  let _ita_grc_r = (regionCircles['義大利、希臘'] && regionCircles['義大利、希臘'].radius)
-      ? regionCircles['義大利、希臘'].radius
-      : (regionCircles['沙烏地阿拉伯'] ? regionCircles['沙烏地阿拉伯'].radius : 1000000);
-  regionCircles['威尼斯、熱那亞、批薩'] = { center: _vgp_center, radius: _ita_grc_r };
-}
-// === END PATCH v6-fix ===
-
-
-
-// === PATCH v6: Map '威尼斯、熱內亞、批薩' to centroid of (Venice, Genoa, Pisa) with radius same as '義大利、希臘' ===
-// Venice (45.4408, 12.3155), Genoa (44.4056, 8.9463), Pisa (43.7167, 10.4036) 
-// => centroid (~44.521033, 10.555133)
-if (typeof regionCircles !== 'undefined') {
-  // Ensure '義大利、希臘' radius exists; if not, derive as in previous patches
-  if (!regionCircles['義大利、希臘']) {
-    // Ensure Saudi radius exists; if not, derive from '中南美洲' (fallback 1.8e6)
-    if (!regionCircles['沙烏地阿拉伯']) {
-      if (!regionCircles['中南美洲']) {
-        regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
-      }
-      const _tmp_latam = regionCircles['中南美洲'].radius || 1800000;
-      regionCircles['沙烏地阿拉伯'] = { center: [23.9, 45.1], radius: Math.max(300000, Math.floor(_tmp_latam * 0.6)) };
-    }
-    const _ksa_r = regionCircles['沙烏地阿拉伯'].radius;
-    // Use the same radius policy as we applied for '義大利、希臘'
-    regionCircles['義大利、希臘'] = { center: [39.9433, 18.11195], radius: _ksa_r };
-  }
-  const _ita_grc_r = (regionCircles['義大利、希臘'] && regionCircles['義大利、希臘'].radius) 
-      ? regionCircles['義大利、希臘'].radius 
-      : (regionCircles['沙烏地阿拉伯'] ? regionCircles['沙烏地阿拉伯'].radius : 1000000);
-  regionCircles['威尼斯、熱內亞、批薩'] = { center: [44.521033, 10.555133], radius: _ita_grc_r };
-}
-// === END PATCH v6 ===
-
-
-
-// === PATCH v5: Map '義大利、希臘' to midpoint of Rome–Athens with radius same as Saudi Arabia ===
-// Rome (41.9028, 12.4964), Athens (37.9838, 23.7275) => midpoint (~39.9433, 18.11195)
-if (typeof regionCircles !== 'undefined') {
-  // Ensure '沙烏地阿拉伯' radius exists; if not, derive from '中南美洲' (1.8e6 default) with 0.6 factor
-  if (!regionCircles['沙烏地阿拉伯']) {
-    if (!regionCircles['中南美洲']) {
-      regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
-    }
-    const _tmp_latam = regionCircles['中南美洲'].radius || 1800000;
-    regionCircles['沙烏地阿拉伯'] = { center: [23.9, 45.1], radius: Math.max(300000, Math.floor(_tmp_latam * 0.6)) };
-  }
-  const _ita_grc_mid = [39.9433, 18.11195];
-  const _ksa_radius = (regionCircles['沙烏地阿拉伯'] && regionCircles['沙烏地阿拉伯'].radius)
-      ? regionCircles['沙烏地阿拉伯'].radius
-      : Math.max(300000, Math.floor(((regionCircles['中南美洲'] && regionCircles['中南美洲'].radius) ? regionCircles['中南美洲'].radius : 1800000) * 0.6));
-  regionCircles['義大利、希臘'] = { center: _ita_grc_mid, radius: _ksa_radius };
-}
-// === END PATCH v5 ===
-
-
-
-// === PATCH v4: Map '沙烏地阿拉伯' to KSA geometric center with radius smaller than '中南美洲' ===
-// Approx centroid of Saudi Arabia (~23.9°N, 45.1°E)
-if (typeof regionCircles !== 'undefined') {
-  // Ensure '中南美洲' exists (from earlier patches); default 1,800 km if absent
-  if (!regionCircles['中南美洲']) {
-    regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
-  }
-  const _ksa_center = [23.9, 45.1];
-  const _latam_radius = (regionCircles['中南美洲'] && regionCircles['中南美洲'].radius) ? regionCircles['中南美洲'].radius : 1800000;
-  const _ksa_radius = Math.max(300000, Math.floor(_latam_radius * 0.6)); // smaller than LatAm
-  regionCircles['沙烏地阿拉伯'] = { center: _ksa_center, radius: _ksa_radius };
-}
-// === END PATCH v4 ===
-
-
-
-// === PATCH v2: Map '印尼' to Indonesia's geometric center and match radius to '中南美洲' ===
-// Approx geometric center of Indonesia (~2.5°S, 118.0°E) — near central Indonesian archipelago
-if (typeof regionCircles !== 'undefined') {
-  // Ensure '中南美洲' stays mapped to Panama (from previous patch) and get its radius
-  if (!regionCircles['中南美洲']) {
-    regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
-  }
-  const _latlng_idn = [-2.5, 118.0];
-  const _radius_same_as_latam = (regionCircles['中南美洲'] && regionCircles['中南美洲'].radius) ? regionCircles['中南美洲'].radius : 1800000;
-  regionCircles['印尼'] = { center: _latlng_idn, radius: _radius_same_as_latam };
-}
-// === END PATCH v2 ===
+// === END PATCH v9 ===
 
 
 const regionMarkers = {
@@ -268,15 +103,6 @@ const regionMarkers = {
   '巴西聖保羅': [-23.5505, -46.6333],
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
-
-
-// === PATCH v3: Map '古巴' to Cuba's geometric center as a marker (no radius) ===
-// Approx centroid of Cuba (~21.5°N, 80.0°W)
-if (typeof regionMarkers !== 'undefined') {
-  regionMarkers['古巴'] = [21.5, -80.0];
-}
-// === END PATCH v3 ===
-
 
 function parseVideos(videoString) {
   if (!videoString) return [];
@@ -618,19 +444,6 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
-// Route detection: if the region matches a defined route key, tag it
-if (row['地區'] && silkRoadRoutes[row['地區']]) {
-  
-
-// Special placement: '西方食材進入中國' -> put at silkMidpoint as label-only (no pin, no radius)
-if (row['事件'] === '西方食材進入中國' && silkMidpoint) {
-  event.coords = (silkMidpointOnPath || silkMidpoint);
-  event.labelOnly = true;
-  if (event.region) delete event.region; // avoid area circle fallback
-}
-event.routeKey = row['地區'];
-}
-
 
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
@@ -935,67 +748,6 @@ map.on('click', function(e) {
 loadingManager.updateProgress(80, '準備歷史事件...', '配置標記');
 loadingManager.nextStage();
 console.log('📌 創建事件標記...');
-
-// --- Silk Road route rendering ---
-const routeLayerGroup = L.layerGroup().addTo(map);
-
-// --- Silk Road visibility: show only at year 0 ---
-function __getYearFromLabel() {
-  const el = document.getElementById('time-current');
-  if (!el) return null;
-  const t = (el.textContent || '').trim();
-  // 西元前
-  let m = t.match(/西元前\s*(\d+)/);
-  if (m) return -parseInt(m[1], 10);
-  // 西元
-  m = t.match(/西元\s*(\d+)/);
-  if (m) return parseInt(m[1], 10);
-  // fallback: any integer
-  m = t.match(/-?\d+/);
-  if (m) return parseInt(m[0], 10);
-  return null;
-}
-
-function __updateSilkVisibility() {
-  const yr = __getYearFromLabel();
-  if (yr === 0) {
-    if (!map.hasLayer(routeLayerGroup)) routeLayerGroup.addTo(map);
-  } else {
-    if (map.hasLayer(routeLayerGroup)) map.removeLayer(routeLayerGroup);
-  }
-}
-
-// Initial check (after current stack)
-setTimeout(__updateSilkVisibility, 0);
-
-// Watch the label and toggle on change
-(function(){
-  const el = document.getElementById('time-current');
-  if (!el || typeof MutationObserver === 'undefined') return;
-  const obs = new MutationObserver(function(){ __updateSilkVisibility(); });
-  obs.observe(el, { childList: true, characterData: true, subtree: true });
-})();
-
-const addedRouteKeys = new Set();
-events.filter(ev => ev.routeKey && silkRoadRoutes[ev.routeKey]).forEach(ev => {
-  const key = ev.routeKey;
-  if (addedRouteKeys.has(key)) return;
-  const route = silkRoadRoutes[key];
-  const line = L.polyline(route.coords, {
-    color: '#FF9500',    // iOS orange to match theme
-    weight: 4,
-    opacity: 0.85,
-    dashArray: '8,6'
-  }).addTo(routeLayerGroup);
-  line.bringToFront();
-  line.on('click', (e) => {
-    showEventPanel(ev);
-    L.DomEvent.stopPropagation(e);
-  });
-  line.on('mouseover', () => line.setStyle({ weight: 6, opacity: 1 }));
-  line.on('mouseout',  () => line.setStyle({ weight: 4, opacity: 0.85 }));
-  addedRouteKeys.add(key);
-});
 let createdMarkers = 0;
 let createdCircles = 0;
 
@@ -1865,11 +1617,3 @@ function showImageModal(imagePath, imageName) {
 
 // 將函數加到全域
 window.showImageModal = showImageModal;
-
-
-// === PATCH: Force-map '中南美洲' to Panama's geometric center ===
-// Approx centroid of Panama (~8.5°N, 80.0°W)
-if (typeof regionCircles !== 'undefined') {
-  regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 }; // 1,800 km radius for a broad Latin region
-}
-// === END PATCH ===
