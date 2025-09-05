@@ -865,17 +865,30 @@ const silkRoadLine = L.polyline(silkRoadCoords, {
   lineJoin: 'round'
 });/* === END NEW === */
 
+    // 將絲路圖層掛到 window，避免 TDZ/作用域問題
+    window.silkRoadHalo = silkRoadHalo;
+    window.silkRoadLine = silkRoadLine;
+
+
     // 依年份顯示/隱藏絲路（只在 year === 0 時顯示）
     function updateSilkRoadVisibility() {
       try {
         if (typeof map === 'undefined') return;
         const show = (Number(currentYear) === 0);
+        const halo = (typeof window !== 'undefined') ? window.silkRoadHalo : undefined;
+        const line = (typeof window !== 'undefined') ? window.silkRoadLine : undefined;
+        if (!halo || !line) return; // 尚未初始化絲路圖層
         if (show) {
-          if (typeof silkRoadHalo !== 'undefined' && !map.hasLayer(silkRoadHalo)) silkRoadHalo.addTo(map);
-          if (typeof silkRoadLine !== 'undefined' && !map.hasLayer(silkRoadLine)) silkRoadLine.addTo(map);
+          if (!map.hasLayer(halo)) halo.addTo(map);
+          if (!map.hasLayer(line)) line.addTo(map);
         } else {
-          if (typeof silkRoadHalo !== 'undefined' && map.hasLayer(silkRoadHalo)) map.removeLayer(silkRoadHalo);
-          if (typeof silkRoadLine !== 'undefined' && map.hasLayer(silkRoadLine)) map.removeLayer(silkRoadLine);
+          if (map.hasLayer(halo)) map.removeLayer(halo);
+          if (map.hasLayer(line)) map.removeLayer(line);
+        }
+      } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
+    } else {
+          if (typeof window.window.silkRoadHalo !== 'undefined' && map.hasLayer(window.silkRoadHalo)) map.removeLayer(window.silkRoadHalo);
+          if (typeof window.window.silkRoadLine !== 'undefined' && map.hasLayer(window.silkRoadLine)) map.removeLayer(window.silkRoadLine);
         }
       } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
     }
@@ -1278,7 +1291,9 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
-  console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
+  console.log(`🔄 更新可見事件: ${currentYear  // 更新絲路顯示
+  updateSilkRoadVisibility();
+}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
   const locationGroups = groupEventsByLocation(
@@ -1318,6 +1333,9 @@ function updateVisibleEvents() {
   
   console.log(`👁️  顯示 ${visibleCount} 個事件 (${locationGroups.size} 個位置)`);
   panel.classList.remove('visible');
+
+  // 結尾同步絲路顯示（只在 year=0 顯示）
+  updateSilkRoadVisibility();
 }
 
   // 章節選擇器事件
@@ -1536,7 +1554,8 @@ document.querySelector('.tick-menu-container').appendChild(eraSpansContainer);
       // 更新可見事件
       updateVisibleEvents();
       
-      // 關閉面板
+        updateSilkRoadVisibility();
+// 關閉面板
       panel.classList.remove('visible');
     });
 
