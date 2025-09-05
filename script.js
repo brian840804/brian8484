@@ -574,7 +574,61 @@ const map = L.map('map', {
   zoomAnimation: true,
   attributionControl: false,
   zoomControl: false  // 添加這行來移除縮放按鈕
-}).setView(initialCenter, initialZoom);
+})
+
+// === PATCH v16b: 絲綢之路（inline + 圖層＆fitBounds + debug） ===
+(function(){
+  try {
+    // 暴露地圖
+    window.map = map;
+
+    // 新建絲路圖層（避免被其他 layer 清掉）
+    if (window.__SILK_ROAD_LAYER__) {
+      try { map.removeLayer(window.__SILK_ROAD_LAYER__); } catch(e){}
+    }
+    var silkLayer = window.__SILK_ROAD_LAYER__ = L.layerGroup().addTo(map);
+
+    // 路徑
+    var silkRoadCoords = [
+      [34.3, 108.9],
+      [36.1, 103.8],
+      [40.1, 94.7],
+      [39.5, 76.0],
+      [39.6, 66.9],
+      [35.7, 51.4],
+      [39.9, 32.9],
+      [41.0, 28.9]
+    ];
+
+    L.polyline(silkRoadCoords, {
+      color: '#cc6600',
+      weight: 4,
+      opacity: 0.9,
+      dashArray: '10,6'
+    }).addTo(silkLayer).bindPopup('絲綢之路');
+
+    silkRoadCoords.forEach(function(pt){
+      L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(silkLayer);
+    });
+
+    // 只在第一次載入自動聚焦（避免每次都搶視角）
+    if (!window.__SILK_ROAD_FIT_DONE__) {
+      try {
+        var b = silkLayer.getBounds();
+        if (b && b.isValid && b.isValid()) {
+          map.fitBounds(b, { padding: [24,24] });
+          window.__SILK_ROAD_FIT_DONE__ = true;
+        }
+      } catch(e){}
+    }
+
+    console.log('✅ v16b Silk Road inline ready. Layer:', window.__SILK_ROAD_LAYER__);
+  } catch (e) {
+    console.warn('Silk Road v16b failed:', e && e.message);
+  }
+})();
+// === END PATCH v16b ===
+.setView(initialCenter, initialZoom);
 
   // 載入地理資料
 const LAND_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_land.geojson';
@@ -674,62 +728,6 @@ function addMapGrid() {
       opacity: 0.1,
       interactive: false
     });
-
-// === PATCH v16: 絲綢之路（可見度/偵錯加強版） ===
-(function(){
-  try {
-    // 1) 暴露地圖到全域
-    window.map = map;
-
-    // 2) 先移除舊圖層避免重複
-    if (window.__SILK_ROAD_LAYER__) {
-      try { map.removeLayer(window.__SILK_ROAD_LAYER__); } catch(e) {}
-      window.__SILK_ROAD_LAYER__ = null;
-    }
-
-    // 3) 建立專屬圖層
-    var silkLayer = window.__SILK_ROAD_LAYER__ = L.layerGroup().addTo(map);
-
-    // 4) 路徑節點（可自行增減/微調）
-    var silkRoadCoords = [
-      [34.3, 108.9], // 西安（長安）
-      [36.1, 103.8], // 蘭州
-      [40.1, 94.7],  // 敦煌
-      [39.5, 76.0],  // 喀什
-      [39.6, 66.9],  // 撒馬爾罕
-      [35.7, 51.4],  // 德黑蘭
-      [39.9, 32.9],  // 安卡拉
-      [41.0, 28.9]   // 伊斯坦堡
-    ];
-
-    // 5) 畫線
-    var silkRoadLine = L.polyline(silkRoadCoords, {
-      color: '#cc6600',
-      weight: 4,
-      opacity: 0.9,
-      dashArray: '10,6'
-    }).addTo(silkLayer).bindPopup('絲綢之路');
-
-    // 6) 每個節點加上小圓點
-    silkRoadCoords.forEach(function(pt){
-      L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(silkLayer);
-    });
-
-    // 7) 自動縮放到絲路範圍（第一次載入時很有用）
-    try {
-      var b = silkLayer.getBounds();
-      if (b && b.isValid && b.isValid()) {
-        map.fitBounds(b, { padding: [24,24] });
-      }
-    } catch(e) {}
-
-    console.log('✅ v16 Silk Road ready. Layer = window.__SILK_ROAD_LAYER__');
-  } catch (e) {
-    console.warn('Silk Road v16 init failed:', e && e.message);
-  }
-})();
-// === END PATCH v16 ===
-
     gridLines.push(line);
   }
   // 緯線
