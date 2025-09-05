@@ -105,6 +105,21 @@ const regionMarkers = {
 };
 
 
+// === PATCH: Map '台灣桃園' to Taoyuan City marker (also normalize 台/臺 variants) ===
+(function(){
+  if (typeof regionMarkers === 'undefined') return;
+  const taoyuan = regionMarkers['台灣桃園市'] || regionMarkers['臺灣桃園市'] || [24.993, 121.296];
+  // Ensure city keys exist
+  regionMarkers['台灣桃園市'] = taoyuan;
+  regionMarkers['臺灣桃園市'] = taoyuan;
+  // Alias '台灣桃園' (and variant) to the same coordinates
+  regionMarkers['台灣桃園'] = taoyuan;
+  regionMarkers['臺灣桃園'] = taoyuan;
+})();
+// === END PATCH ===
+
+
+
 // === PATCH: Map '台灣西南部/臺灣西南部' to the '台灣台南' marker (safe, no regex changes) ===
 (function(){
   if (typeof regionMarkers === 'undefined') return;
