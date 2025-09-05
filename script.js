@@ -104,20 +104,19 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
-// === PATCH v11: 新增「國家+城市」精確座標 ===
+
+// === PATCH: Map '台灣桃園' to Taoyuan City marker (also normalize 台/臺 variants) ===
 (function(){
   if (typeof regionMarkers === 'undefined') return;
-
-  // 日本京都 (Kyoto)
-  regionMarkers['日本京都'] = [35.0116, 135.7681];
-
-  // 日本長崎 (Nagasaki)
-  regionMarkers['日本長崎'] = [32.7503, 129.8777];
-
-  // 美國芝加哥 (Chicago)
-  regionMarkers['美國芝加哥'] = [41.8781, -87.6298];
+  const taoyuan = regionMarkers['台灣桃園市'] || regionMarkers['臺灣桃園市'] || [24.993, 121.296];
+  // Ensure city keys exist
+  regionMarkers['台灣桃園市'] = taoyuan;
+  regionMarkers['臺灣桃園市'] = taoyuan;
+  // Alias '台灣桃園' (and variant) to the same coordinates
+  regionMarkers['台灣桃園'] = taoyuan;
+  regionMarkers['臺灣桃園'] = taoyuan;
 })();
-// === END PATCH v11 ===
+// === END PATCH ===
 
 
 
@@ -131,80 +130,6 @@ const regionMarkers = {
   regionMarkers['臺灣西南部'] = tainan;
 })();
 // === END PATCH ===
-let __skipDefaultPlacement = false;
-// === PATCH v10: 台北+高雄「雙標記」與特別樣式旗標 ===
-(function () {
-  try {
-    const loc = (row && row['地區']) ? String(row['地區']) : '';
-    const hasTaipei = loc.includes('台灣台北') || loc.includes('臺灣台北');
-    const hasKaohsiung = loc.includes('台灣高雄') || loc.includes('臺灣高雄');
-
-    if (hasTaipei && hasKaohsiung) {
-      const taipei = (typeof regionMarkers !== 'undefined' && regionMarkers['台灣台北']) || [25.0375, 121.5637];
-      const kaohsiung = (typeof regionMarkers !== 'undefined' && regionMarkers['台灣高雄']) || [22.6273, 120.3014];
-
-      const base = event;
-      const ev1 = { ...base, coords: taipei, region: undefined, __twDual: true, __twCity: '台北' };
-      const ev2 = { ...base, coords: kaohsiung, region: undefined, __twDual: true, __twCity: '高雄' };
-
-      events.push(ev1); successfulEvents++;
-      events.push(ev2); successfulEvents++;
-      console.log(`   ✅ 事件已雙標記於台北與高雄: ${event.name}`);
-      __skipDefaultPlacement = true;
-    }
-  } catch (e) {}
-})();
-// === END PATCH v10 ===
-// === PATCH v12: 解析「中國＋省級」地區，分裂為多省事件並定位 ===
-(function () {
-  try {
-    if (typeof window.__CN_PROV_MAP__ === 'undefined') return;
-    const raw = (row && row['地區'] || '').trim();
-    if (!raw) return;
-
-    // 移除括號附註，全形括號與半形括號都處理
-    const stripped = raw.replace(/（[^）]*）|\([^)]*\)/g, '');
-    // 統一前綴與空白
-    let cleaned = stripped.replace(/\s+/g, '');
-    // 必須是中國開頭
-    if (!/^中國|^中国/.test(cleaned)) return;
-
-    // 如果已經有精確城市（regionMarkers 命中），讓後續城市邏輯處理，不在這裡攔截
-    if (regionMarkers && regionMarkers[cleaned]) return;
-
-    // 切多省：支援全形/半形逗號分隔、頓號、斜線、分號、以及「及」
-    const parts = cleaned.replace(/^中国|^中國/, '中國').split(/[、，,\/;；及]/).map(s => s.trim()).filter(Boolean);
-    const hits = [];
-    for (let p of parts) {
-      // 去「中國」字首
-      let key = p.replace(/^中國/, '');
-      // 別名映射（含簡繁）
-      key = (window.__CN_PROV_ALIASES__ && (window.__CN_PROV_ALIASES__[p] || window.__CN_PROV_ALIASES__['中國'+key])) || key;
-      // 若沒帶「省/市/自治區/特別行政區」尾綴，預設補「省」
-      if (!/(省|市|自治區|自治区|特別行政區|特别行政区)$/.test(key)) {
-        key += '省';
-      }
-      if (window.__CN_PROV_MAP__ && window.__CN_PROV_MAP__[key]) {
-        hits.push(key);
-      }
-    }
-
-    if (hits.length > 0) {
-      const base = event;
-      hits.forEach(k => {
-        const ev = { ...base, coords: window.__CN_PROV_MAP__[k], region: undefined, __cnProv: k };
-        events.push(ev); successfulEvents++;
-      });
-      console.log(`   ✅ 事件已定位至省級中心: ${event.name} -> ${hits.join('、')}`);
-      __skipDefaultPlacement = true;
-    }
-  } catch (e) {
-    console.warn('省級解析錯誤', e);
-  }
-})();
-// === END PATCH v12 ===
-
-
 
 
 function parseVideos(videoString) {
@@ -548,137 +473,13 @@ loadingManager.nextStage();
   }
 };
 
-// === PATCH: Force '台灣桃園/臺灣桃園' to use Taipei marker ===
-(function(){
-  try {
-    const taipei = (typeof regionMarkers !== 'undefined' && (regionMarkers['台灣台北'] || regionMarkers['臺灣台北'])) || [25.0375, 121.5635];
-    const loc = row && row['地區'];
-    if (loc === '台灣桃園' || loc === '臺灣桃園') {
-      event.coords = taipei;
-      if (event.region) delete event.region; // prevent area-circle fallback
-      event.labelOnly = false;
-    }
-  } catch (e) {}
-})();
-// === END PATCH ===
-let __skipDefaultPlacement = false;
-// === PATCH v10: 台北+高雄「雙標記」與特別樣式旗標 ===
-(function () {
-  try {
-    const loc = (row && row['地區']) ? String(row['地區']) : '';
-    const hasTaipei = loc.includes('台灣台北') || loc.includes('臺灣台北');
-    const hasKaohsiung = loc.includes('台灣高雄') || loc.includes('臺灣高雄');
-
-    if (hasTaipei && hasKaohsiung) {
-      const taipei = (typeof regionMarkers !== 'undefined' && regionMarkers['台灣台北']) || [25.0375, 121.5637];
-      const kaohsiung = (typeof regionMarkers !== 'undefined' && regionMarkers['台灣高雄']) || [22.6273, 120.3014];
-
-      const base = event;
-      const ev1 = { ...base, coords: taipei, region: undefined, __twDual: true, __twCity: '台北' };
-      const ev2 = { ...base, coords: kaohsiung, region: undefined, __twDual: true, __twCity: '高雄' };
-
-      events.push(ev1); successfulEvents++;
-      events.push(ev2); successfulEvents++;
-      console.log(`   ✅ 事件已雙標記於台北與高雄: ${event.name}`);
-      __skipDefaultPlacement = true;
-    }
-  } catch (e) {}
-})();
-// === END PATCH v10 ===
-// === PATCH v12: 解析「中國＋省級」地區，分裂為多省事件並定位 ===
-(function () {
-  try {
-    if (typeof window.__CN_PROV_MAP__ === 'undefined') return;
-    const raw = (row && row['地區'] || '').trim();
-    if (!raw) return;
-
-    // 移除括號附註，全形括號與半形括號都處理
-    const stripped = raw.replace(/（[^）]*）|\([^)]*\)/g, '');
-    // 統一前綴與空白
-    let cleaned = stripped.replace(/\s+/g, '');
-    // 必須是中國開頭
-    if (!/^中國|^中国/.test(cleaned)) return;
-
-    // 如果已經有精確城市（regionMarkers 命中），讓後續城市邏輯處理，不在這裡攔截
-    if (regionMarkers && regionMarkers[cleaned]) return;
-
-    // 切多省：支援全形/半形逗號分隔、頓號、斜線、分號、以及「及」
-    const parts = cleaned.replace(/^中国|^中國/, '中國').split(/[、，,\/;；及]/).map(s => s.trim()).filter(Boolean);
-    const hits = [];
-    for (let p of parts) {
-      // 去「中國」字首
-      let key = p.replace(/^中國/, '');
-      // 別名映射（含簡繁）
-      key = (window.__CN_PROV_ALIASES__ && (window.__CN_PROV_ALIASES__[p] || window.__CN_PROV_ALIASES__['中國'+key])) || key;
-      // 若沒帶「省/市/自治區/特別行政區」尾綴，預設補「省」
-      if (!/(省|市|自治區|自治区|特別行政區|特别行政区)$/.test(key)) {
-        key += '省';
-      }
-      if (window.__CN_PROV_MAP__ && window.__CN_PROV_MAP__[key]) {
-        hits.push(key);
-      }
-    }
-
-    if (hits.length > 0) {
-      const base = event;
-      hits.forEach(k => {
-        const ev = { ...base, coords: window.__CN_PROV_MAP__[k], region: undefined, __cnProv: k };
-        events.push(ev); successfulEvents++;
-      });
-      console.log(`   ✅ 事件已定位至省級中心: ${event.name} -> ${hits.join('、')}`);
-      __skipDefaultPlacement = true;
-    }
-  } catch (e) {
-    console.warn('省級解析錯誤', e);
-  }
-})();
-// === END PATCH v12 ===
+// Special label offset: avoid overlap for '孤軍的米干'
+if (row['事件'] === '孤軍的米干') {
+  // You can tweak these numbers if needed
+  event.labelOffset = [-28, -28]; // [dx, dy] in pixels: right 20px, up 24px
+}
 
 
-
-
-          
-
-// === PATCH v12: 解析「中國＋省級」地區，分裂為多省事件並定位 ===
-(function () {
-  try {
-    if (typeof window.__CN_PROV_MAP__ === 'undefined') return;
-    const raw = (row && row['地區'] || '').trim();
-    if (!raw) return;
-
-    // 移除括號附註，統一空白
-    const stripped = raw.replace(/（[^）]*）|\([^)]*\)/g, '');
-    let cleaned = stripped.replace(/\s+/g, '');
-    if (!/^中國|^中国/.test(cleaned)) return;
-
-    // 若已命中精確城市/地區，交給原邏輯，不在這裡攔截
-    if (typeof regionMarkers !== 'undefined' && regionMarkers[cleaned]) return;
-
-    // 切多省
-    const parts = cleaned.replace(/^中国|^中國/, '中國').split(/[、，,\/;；及]/).map(s => s.trim()).filter(Boolean);
-    const hits = [];
-    for (let p of parts) {
-      let key = p.replace(/^中國/, '');
-      key = (window.__CN_PROV_ALIASES__ && (window.__CN_PROV_ALIASES__[p] || window.__CN_PROV_ALIASES__['中國'+key])) || key;
-      if (!/(省|市|自治區|自治区|特別行政區|特别行政区)$/.test(key)) key += '省';
-      if (window.__CN_PROV_MAP__ && window.__CN_PROV_MAP__[key]) hits.push(key);
-    }
-
-    if (hits.length > 0) {
-      const base = event;
-      hits.forEach(k => {
-        const ev = { ...base, coords: window.__CN_PROV_MAP__[k], region: undefined, __cnProv: k };
-        events.push(ev); successfulEvents++;
-      });
-      console.log(`   ✅ 省級定位: ${event.name} -> ${hits.join('、')}`);
-      __skipDefaultPlacement = true;
-    }
-  } catch (e) {
-    console.warn('省級解析錯誤', e);
-  }
-})();
-// === END PATCH v12 parse ===
-if (!__skipDefaultPlacement) {
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
             event.coords = regionMarkers[row['地區']];
@@ -722,8 +523,6 @@ if (event.videos.length > 0 || event.images.length > 0) {
     原始圖片欄位: row['圖片資訊']
   });
 }
-
-          } // end dual-skip guard
 
 events.push(event);
 successfulEvents++;
@@ -1020,19 +819,22 @@ function createClusterMarker(locationEvents, coords) {
   if (eventCount === 1) {
     // 單一事件，使用原本的標記
     const ev = locationEvents[0];
-    const pinClass = ev.__twDual ? 'marker-pin tw-dual' : 'marker-pin';
-    const labelSuffix = (ev.__twDual && ev.__twCity) ? `（${ev.__twCity}）` : '';
     ev.marker = L.marker(coords, {
       icon: L.divIcon({
-        html: `<div class="custom-marker">
-                 <div class="${pinClass}"></div>
-                 <div class="marker-label">${ev.name}${labelSuffix}</div>
-               </div>`,
+        html: (function(){
+          const __off = ev.labelOffset || [0,0];
+          const __style = (__off[0] || __off[1]) ? ` style="transform: translate(${__off[0]}px, ${__off[1]}px)"` : '';
+          return `<div class="custom-marker">
+                    <div class="marker-pin"></div>
+                    <div class="marker-label"${__style}>${ev.name}</div>
+                  </div>`;
+        })(),
         className: 'custom-marker-container',
-        iconSize: [150, 20],
+        iconSize: [220, 36],
         iconAnchor: [6, 10]
       })
-    });
+    },
+        zIndexOffset: (ev.name === '渡海而來的沙茶醬料' ? 10000 : 0));
 
     ev.marker.on('click', function(e) {
       showEventPanel(ev);
@@ -1855,127 +1657,3 @@ function showImageModal(imagePath, imageName) {
 
 // 將函數加到全域
 window.showImageModal = showImageModal;
-
-// === PATCH v12: 中國省級對應表（中心座標）＋別名 ===
-(function(){
-  if (typeof window.__CN_PROV_MAP__ !== 'undefined') return;
-  window.__CN_PROV_MAP__ = {
-    // 省（22）
-    '河北省': [38.0, 114.5], '山西省': [37.9, 112.5], '遼寧省': [41.8, 123.4],
-    '吉林省': [43.7, 126.2], '黑龍江省': [47.3, 128.0], '江蘇省': [32.9, 119.8],
-    '浙江省': [29.1, 119.6], '安徽省': [31.9, 117.3], '福建省': [26.1, 118.0],
-    '江西省': [27.6, 115.9], '山東省': [36.3, 118.0], '河南省': [34.9, 113.6],
-    '湖北省': [30.9, 112.3], '湖南省': [27.6, 111.7], '廣東省': [23.4, 113.3],
-    '海南省': [19.2, 109.7], '四川省': [30.6, 103.9], '貴州省': [26.8, 106.7],
-    '雲南省': [25.0, 101.5], '陝西省': [35.9, 109.1], '甘肅省': [38.1, 102.5],
-    '青海省': [35.7, 96.0],
-    // 自治區（5）
-    '內蒙古自治區': [43.7, 114.1], '廣西壯族自治區': [23.7, 108.3],
-    '西藏自治區': [31.7, 88.8], '寧夏回族自治區': [37.3, 106.2],
-    '新疆維吾爾自治區': [41.8, 87.6],
-    // 直轄市（4）
-    '北京市': [39.9, 116.4], '天津市': [39.1, 117.2],
-    '上海市': [31.2, 121.5], '重慶市': [29.6, 106.5],
-    // 特別行政區（2）
-    '香港特別行政區': [22.3, 114.2], '澳門特別行政區': [22.2, 113.5]
-  };
-
-  window.__CN_PROV_ALIASES__ = {
-    // 常見簡繁／是否帶「省」
-    '中國廣東省': '廣東省', '中国广东省': '廣東省', '中國廣東': '廣東省', '中国广东': '廣東省',
-    '中國福建省': '福建省', '中国福建省': '福建省', '中國福建': '福建省', '中国福建': '福建省',
-    '中國山東省': '山東省', '中国山东省': '山東省', '中國山東': '山東省', '中国山东': '山東省',
-    '中國河南省': '河南省', '中国河南省': '河南省', '中國河南': '河南省', '中国河南': '河南省',
-    '中國湖北省': '湖北省', '中国湖北省': '湖北省', '中國湖北': '湖北省', '中国湖北': '湖北省',
-    '中國陝西省': '陝西省', '中国陕西省': '陝西省', '中國陝西': '陝西省', '中国陕西': '陝西省',
-    '中國浙江省': '浙江省', '中国浙江省': '浙江省', '中國浙江': '浙江省', '中国浙江': '浙江省',
-    '中國江蘇省': '江蘇省', '中国江苏省': '江蘇省', '中國江蘇': '江蘇省', '中国江苏': '江蘇省',
-    '中國四川省': '四川省', '中国四川省': '四川省', '中國四川': '四川省', '中国四川': '四川省',
-    '中國山西省': '山西省', '中国山西省': '山西省', '中國山西': '山西省', '中国山西': '山西省',
-    '中國江西省': '江西省', '中国江西省': '江西省', '中國江西': '江西省', '中国江西': '江西省',
-    '中國安徽省': '安徽省', '中国安徽省': '安徽省', '中國安徽': '安徽省', '中国安徽': '安徽省',
-    '中國黑龍江省': '黑龍江省', '中国黑龙江省': '黑龍江省', '中國黑龍江': '黑龍江省', '中国黑龙江': '黑龍江省',
-    '中國吉林省': '吉林省', '中国吉林省': '吉林省', '中國吉林': '吉林省', '中国吉林': '吉林省',
-    '中國遼寧省': '遼寧省', '中国辽宁省': '遼寧省', '中國遼寧': '遼寧省', '中国辽宁': '遼寧省',
-    '中國貴州省': '貴州省', '中国贵州省': '貴州省', '中國貴州': '貴州省', '中国贵州': '貴州省',
-    '中國雲南省': '雲南省', '中国云南省': '雲南省', '中國雲南': '雲南省', '中国云南': '雲南省',
-    '中國甘肅省': '甘肅省', '中国甘肅省': '甘肅省', '中國甘肃': '甘肅省', '中国甘肃': '甘肅省',
-    '中國青海省': '青海省', '中国青海省': '青海省', '中國青海': '青海省', '中国青海': '青海省',
-    '中國海南省': '海南省', '中国海南省': '海南省', '中國海南': '海南省', '中国海南': '海南省',
-    // 自治區
-    '中國內蒙古自治區': '內蒙古自治區', '中国内蒙古自治区': '內蒙古自治區', '中國內蒙古': '內蒙古自治區', '中国内蒙古': '內蒙古自治區',
-    '中國廣西壯族自治區': '廣西壯族自治區', '中国广西壮族自治区': '廣西壯族自治區', '中國廣西': '廣西壯族自治區', '中国广西': '廣西壯族自治區',
-    '中國西藏自治區': '西藏自治區', '中国西藏自治区': '西藏自治區', '中國西藏': '西藏自治區', '中国西藏': '西藏自治區',
-    '中國寧夏回族自治區': '寧夏回族自治區', '中国宁夏回族自治区': '寧夏回族自治區', '中國寧夏': '寧夏回族自治區', '中国宁夏': '寧夏回族自治區',
-    '中國新疆維吾爾自治區': '新疆維吾爾自治區', '中国新疆维吾尔自治区': '新疆維吾爾自治區', '中國新疆': '新疆維吾爾自治區', '中国新疆': '新疆維吾爾自治區',
-    // 直轄市 & 特區
-    '中國北京市': '北京市', '中国北京市': '北京市', '中國北京': '北京市', '中国北京': '北京市',
-    '中國天津市': '天津市', '中国天津市': '天津市', '中國天津': '天津市', '中国天津': '天津市',
-    '中國上海市': '上海市', '中国上海市': '上海市', '中國上海': '上海市', '中国上海': '上海市',
-    '中國重慶市': '重慶市', '中国重庆市': '重慶市', '中國重慶': '重慶市', '中国重庆': '重慶市',
-    '中國香港特別行政區': '香港特別行政區', '中国香港特别行政区': '香港特別行政區', '中國香港': '香港特別行政區', '中国香港': '香港特別行政區',
-    '中國澳門特別行政區': '澳門特別行政區', '中国澳门特别行政区': '澳門特別行政區', '中國澳門': '澳門特別行政區', '中国澳门': '澳門特別行政區'
-  };
-})();
-// === END PATCH v12 ===
-
-
-// === PATCH v12: 中國省級對應表（中心座標）＋別名 ===
-(function(){
-  if (typeof window.__CN_PROV_MAP__ !== 'undefined') return;
-  window.__CN_PROV_MAP__ = {
-    // 省（22）
-    '河北省': [38.0, 114.5], '山西省': [37.9, 112.5], '遼寧省': [41.8, 123.4],
-    '吉林省': [43.7, 126.2], '黑龍江省': [47.3, 128.0], '江蘇省': [32.9, 119.8],
-    '浙江省': [29.1, 119.6], '安徽省': [31.9, 117.3], '福建省': [26.1, 118.0],
-    '江西省': [27.6, 115.9], '山東省': [36.3, 118.0], '河南省': [34.9, 113.6],
-    '湖北省': [30.9, 112.3], '湖南省': [27.6, 111.7], '廣東省': [23.4, 113.3],
-    '海南省': [19.2, 109.7], '四川省': [30.6, 103.9], '貴州省': [26.8, 106.7],
-    '雲南省': [25.0, 101.5], '陝西省': [35.9, 109.1], '甘肅省': [38.1, 102.5],
-    '青海省': [35.7, 96.0],
-    // 自治區（5）
-    '內蒙古自治區': [43.7, 114.1], '廣西壯族自治區': [23.7, 108.3],
-    '西藏自治區': [31.7, 88.8], '寧夏回族自治區': [37.3, 106.2],
-    '新疆維吾爾自治區': [41.8, 87.6],
-    // 直轄市（4）
-    '北京市': [39.9, 116.4], '天津市': [39.1, 117.2],
-    '上海市': [31.2, 121.5], '重慶市': [29.6, 106.5],
-    // 特別行政區（2）
-    '香港特別行政區': [22.3, 114.2], '澳門特別行政區': [22.2, 113.5]
-  };
-
-  window.__CN_PROV_ALIASES__ = {
-    '中國廣東省': '廣東省','中国广东省': '廣東省','中國廣東': '廣東省','中国广东': '廣東省',
-    '中國福建省': '福建省','中国福建省': '福建省','中國福建': '福建省','中国福建': '福建省',
-    '中國山東省': '山東省','中国山东省': '山東省','中國山東': '山東省','中国山东': '山東省',
-    '中國河南省': '河南省','中国河南省': '河南省','中國河南': '河南省','中国河南': '河南省',
-    '中國湖北省': '湖北省','中国湖北省': '湖北省','中國湖北': '湖北省','中国湖北': '湖北省',
-    '中國陝西省': '陝西省','中国陕西省': '陝西省','中國陝西': '陝西省','中国陕西': '陝西省',
-    '中國浙江省': '浙江省','中国浙江省': '浙江省','中國浙江': '浙江省','中国浙江': '浙江省',
-    '中國江蘇省': '江蘇省','中国江苏省': '江蘇省','中國江蘇': '江蘇省','中国江苏': '江蘇省',
-    '中國四川省': '四川省','中国四川省': '四川省','中國四川': '四川省','中国四川': '四川省',
-    '中國山西省': '山西省','中国山西省': '山西省','中國山西': '山西省','中国山西': '山西省',
-    '中國江西省': '江西省','中国江西省': '江西省','中國江西': '江西省','中国江西': '江西省',
-    '中國安徽省': '安徽省','中国安徽省': '安徽省','中國安徽': '安徽省','中国安徽': '安徽省',
-    '中國黑龍江省': '黑龍江省','中国黑龙江省': '黑龍江省','中國黑龍江': '黑龍江省','中国黑龙江': '黑龍江省',
-    '中國吉林省': '吉林省','中国吉林省': '吉林省','中國吉林': '吉林省','中国吉林': '吉林省',
-    '中國遼寧省': '遼寧省','中国辽宁省': '遼寧省','中國遼寧': '遼寧省','中国辽宁': '遼寧省',
-    '中國貴州省': '貴州省','中国贵州省': '貴州省','中國貴州': '貴州省','中国贵州': '貴州省',
-    '中國雲南省': '雲南省','中国云南省': '雲南省','中國雲南': '雲南省','中国云南': '雲南省',
-    '中國甘肅省': '甘肅省','中国甘肃省': '甘肅省','中國甘肅': '甘肅省','中国甘肃': '甘肅省',
-    '中國青海省': '青海省','中国青海省': '青海省','中國青海': '青海省','中国青海': '青海省',
-    '中國海南省': '海南省','中国海南省': '海南省','中國海南': '海南省','中国海南': '海南省',
-    '中國內蒙古自治區': '內蒙古自治區','中国内蒙古自治区': '內蒙古自治區','中國內蒙古': '內蒙古自治區','中国内蒙古': '內蒙古自治區',
-    '中國廣西壯族自治區': '廣西壯族自治區','中国广西壮族自治区': '廣西壯族自治區','中國廣西': '廣西壯族自治區','中国广西': '廣西壯族自治區',
-    '中國西藏自治區': '西藏自治區','中国西藏自治区': '西藏自治區','中國西藏': '西藏自治區','中国西藏': '西藏自治區',
-    '中國寧夏回族自治區': '寧夏回族自治區','中国宁夏回族自治区': '寧夏回族自治區','中國寧夏': '寧夏回族自治區','中国宁夏': '寧夏回族自治區',
-    '中國新疆維吾爾自治區': '新疆維吾爾自治區','中国新疆维吾尔自治区': '新疆維吾爾自治區','中國新疆': '新疆維吾爾自治區','中国新疆': '新疆維吾爾自治區',
-    '中國北京市': '北京市','中国北京市': '北京市','中國北京': '北京市','中国北京': '北京市',
-    '中國天津市': '天津市','中国天津市': '天津市','中國天津': '天津市','中国天津': '天津市',
-    '中國上海市': '上海市','中国上海市': '上海市','中國上海': '上海市','中国上海': '上海市',
-    '中國重慶市': '重慶市','中国重庆市': '重慶市','中國重慶': '重慶市','中国重庆': '重慶市',
-    '中國香港特別行政區': '香港特別行政區','中国香港特别行政区': '香港特別行政區','中國香港': '香港特別行政區','中国香港': '香港特別行政區',
-    '中國澳門特別行政區': '澳門特別行政區','中国澳门特别行政区': '澳門特別行政區','中國澳門': '澳門特別行政區','中国澳门': '澳門特別行政區'
-  };
-})();
-// === END PATCH v12 map ===
