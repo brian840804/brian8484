@@ -57,6 +57,28 @@ const regionCircles = {
 };
 
 
+// === PATCH v7: Map '雅典；羅馬' and '雅典、羅馬' to same center & radius as '義大利、希臘' ===
+if (typeof regionCircles !== 'undefined') {
+  // Ensure '義大利、希臘' exists with correct radius (mirrors prior patches)
+  if (!regionCircles['義大利、希臘']) {
+    if (!regionCircles['沙烏地阿拉伯']) {
+      if (!regionCircles['中南美洲']) {
+        regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
+      }
+      const _tmp_latam = regionCircles['中南美洲'].radius || 1800000;
+      regionCircles['沙烏地阿拉伯'] = { center: [23.9, 45.1], radius: Math.max(300000, Math.floor(_tmp_latam * 0.6)) };
+    }
+    const _ksa_r = regionCircles['沙烏地阿拉伯'].radius;
+    regionCircles['義大利、希臘'] = { center: [39.9433, 18.11195], radius: _ksa_r };
+  }
+  const _itgr = regionCircles['義大利、希臘'];
+  regionCircles['雅典；羅馬'] = { center: _itgr.center, radius: _itgr.radius };
+  regionCircles['雅典、羅馬'] = { center: _itgr.center, radius: _itgr.radius };
+}
+// === END PATCH v7 ===
+
+
+
 // === PATCH v6-fix: Ensure Excel key '威尼斯、熱那亞、批薩' is mapped (Excel uses 那, not 內) ===
 if (typeof regionCircles !== 'undefined') {
   // Reuse the same centroid and radius as the '威尼斯、熱內亞、批薩' entry if present;
