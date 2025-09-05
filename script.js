@@ -1609,9 +1609,10 @@ function showImageModal(imagePath, imageName) {
 // 將函數加到全域
 window.showImageModal = showImageModal;
 
-// === PATCH: Map '中南美洲' to South America's geometric center ===
-// Centroid approx. near Chapada dos Guimarães, Brazil (~15.6°S, 56.1°W)
-if (!regionCircles['中南美洲']) {
-  regionCircles['中南美洲'] = { center: [-15.6, -56.1], radius: 900000 };
+
+// === PATCH: Force-map '中南美洲' to Panama's geometric center ===
+// Approx centroid of Panama (~8.5°N, 80.0°W)
+if (typeof regionCircles !== 'undefined') {
+  regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 }; // 1,800 km radius for a broad Latin region
 }
 // === END PATCH ===
