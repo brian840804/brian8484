@@ -833,7 +833,8 @@ function createClusterMarker(locationEvents, coords) {
         iconSize: [220, 36],
         iconAnchor: [6, 10]
       })
-    });
+    },
+        zIndexOffset: (ev.name === '渡海而來的沙茶醬料' ? 10000 : 0));
 
     ev.marker.on('click', function(e) {
       showEventPanel(ev);
