@@ -865,6 +865,22 @@ const silkRoadLine = L.polyline(silkRoadCoords, {
   lineJoin: 'round'
 }).addTo(map);/* === END NEW === */
 
+    // 依年份顯示/隱藏絲路（只在 year === 0 時顯示）
+    function updateSilkRoadVisibility() {
+      try {
+        if (typeof map === 'undefined') return;
+        const show = (currentYear === 0);
+        if (show) {
+          if (typeof silkRoadHalo !== 'undefined' && !map.hasLayer(silkRoadHalo)) silkRoadHalo.addTo(map);
+          if (typeof silkRoadLine !== 'undefined' && !map.hasLayer(silkRoadLine)) silkRoadLine.addTo(map);
+        } else {
+          if (typeof silkRoadHalo !== 'undefined' && map.hasLayer(silkRoadHalo)) map.removeLayer(silkRoadHalo);
+          if (typeof silkRoadLine !== 'undefined' && map.hasLayer(silkRoadLine)) map.removeLayer(silkRoadLine);
+        }
+      } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
+    }
+
+
   } catch (err) {
     console.error('❌ 地圖載入失敗:', err);
   }
@@ -1310,6 +1326,7 @@ function updateVisibleEvents() {
       selectedSections = Array.from(document.querySelectorAll('.section-checkbox:checked')).map(b => b.value);
       console.log('📋 更新選中章節:', selectedSections);
       updateVisibleEvents();
+  updateSilkRoadVisibility();
     });
   });
 
