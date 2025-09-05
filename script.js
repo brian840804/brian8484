@@ -827,7 +827,7 @@ loadingManager.nextStage();
     map.fitBounds([[-60, -180], [75, 180]]);
     console.log('✅ 地圖初始化完成');
 
-// === 陸上絲綢之路（只在 year=0 顯示；橘色主線 + 白色暈邊） ===
+// === 陸上絲綢之路（固定顯示；橘色主線 + 白色暈邊） ===
 const silkRoadCoords = [
   [34.3416, 108.9398], // 長安（西安）
   [36.0611, 103.8343], // 蘭州
@@ -854,42 +854,16 @@ const silkRoadHalo = L.polyline(silkRoadCoords, {
   lineJoin: 'round',
   interactive: false
 }).addTo(map);
+
 const silkRoadLine = L.polyline(silkRoadCoords, {
   color: '#FF9500',
   weight: 4,
   opacity: 1.0,
   lineJoin: 'round'
 }).addTo(map);
-
-window.silkRoadHalo = silkRoadHalo;
-window.silkRoadLine = silkRoadLine;
-else {
-      if (map.hasLayer(halo)) map.removeLayer(halo);
-      if (map.hasLayer(line)) map.removeLayer(line);
-    }
-  } catch (e) {
-    console.warn('updateSilkRoadVisibility error', e);
-  }
-}
-} catch (e) {
-    console.warn('updateSilkRoadVisibility error', e);
-  }
-}else {
-          if (map.hasLayer(halo)) map.removeLayer(halo);
-          if (map.hasLayer(line)) map.removeLayer(line);
-        }
-      } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
-    }} catch (e) { console.warn('updateSilkRoadVisibility error', e); }
-}
 // === END 陸上絲綢之路 ===
 
 
- else {
-          if (typeof window.silkRoadHalo !== 'undefined' && map.hasLayer(window.silkRoadHalo)) map.removeLayer(window.silkRoadHalo);
-          if (typeof window.silkRoadLine !== 'undefined' && map.hasLayer(window.silkRoadLine)) map.removeLayer(window.silkRoadLine);
-        }
-      } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
-    }
 
 
   } catch (err) {
