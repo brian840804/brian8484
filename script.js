@@ -56,6 +56,21 @@ const regionCircles = {
   '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 }
 };
 
+
+// === PATCH v2: Map '印尼' to Indonesia's geometric center and match radius to '中南美洲' ===
+// Approx geometric center of Indonesia (~2.5°S, 118.0°E) — near central Indonesian archipelago
+if (typeof regionCircles !== 'undefined') {
+  // Ensure '中南美洲' stays mapped to Panama (from previous patch) and get its radius
+  if (!regionCircles['中南美洲']) {
+    regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
+  }
+  const _latlng_idn = [-2.5, 118.0];
+  const _radius_same_as_latam = (regionCircles['中南美洲'] && regionCircles['中南美洲'].radius) ? regionCircles['中南美洲'].radius : 1800000;
+  regionCircles['印尼'] = { center: _latlng_idn, radius: _radius_same_as_latam };
+}
+// === END PATCH v2 ===
+
+
 const regionMarkers = {
   '中國北京': [39.9042, 116.4074],
   '中國山西': [37.8735, 112.5624],
