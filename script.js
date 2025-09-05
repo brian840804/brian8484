@@ -853,15 +853,31 @@ const silkRoadHalo = L.polyline(silkRoadCoords, {
   opacity: 0.9,
   lineJoin: 'round',
   interactive: false
-}).addTo(map);
+});
 
 const silkRoadLine = L.polyline(silkRoadCoords, {
   color: '#FF9500',
   weight: 4,
   opacity: 1.0,
   lineJoin: 'round'
-}).addTo(map);
+});
 // === END 陸上絲綢之路 ===
+
+/* Silk Road visibility: only show at year = 0 (minimal-hook, Approach B) */
+function updateSilkRoadForYear() {
+  try {
+    if (typeof map === 'undefined') return;
+    const show = (Number(currentYear) === 0);
+    if (show) {
+      if (!map.hasLayer(silkRoadHalo)) silkRoadHalo.addTo(map);
+      if (!map.hasLayer(silkRoadLine)) silkRoadLine.addTo(map);
+    } else {
+      if (map.hasLayer(silkRoadHalo)) map.removeLayer(silkRoadHalo);
+      if (map.hasLayer(silkRoadLine)) map.removeLayer(silkRoadLine);
+    }
+  } catch (e) { console.warn('updateSilkRoadForYear error', e); }
+}
+
 
 
 
@@ -1523,6 +1539,7 @@ document.querySelector('.tick-menu-container').appendChild(eraSpansContainer);
       
       // 更新可見事件
       updateVisibleEvents();
+      updateSilkRoadForYear();
 // 關閉面板
       panel.classList.remove('visible');
     });
@@ -1544,8 +1561,7 @@ tickItem.addEventListener('mouseleave', function() {
   console.log('✅ 時間軸設置完成');
 
   // 初始載入
-  console.log('🎬 執行初始更新...');
-  updateVisibleEvents();
+  \1  updateSilkRoadForYear();
 loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
 loadingManager.nextStage();
 loadingManager.hide();
