@@ -104,6 +104,22 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
+// === PATCH v11: 新增「國家+城市」精確座標 ===
+(function(){
+  if (typeof regionMarkers === 'undefined') return;
+
+  // 日本京都 (Kyoto)
+  regionMarkers['日本京都'] = [35.0116, 135.7681];
+
+  // 日本長崎 (Nagasaki)
+  regionMarkers['日本長崎'] = [32.7503, 129.8777];
+
+  // 美國芝加哥 (Chicago)
+  regionMarkers['美國芝加哥'] = [41.8781, -87.6298];
+})();
+// === END PATCH v11 ===
+
+
 
 // === PATCH: Map '台灣西南部/臺灣西南部' to the '台灣台南' marker (safe, no regex changes) ===
 (function(){
