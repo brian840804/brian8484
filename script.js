@@ -57,6 +57,20 @@ const regionCircles = {
 };
 
 
+// === PATCH v6-fix: Ensure Excel key '威尼斯、熱那亞、批薩' is mapped (Excel uses 那, not 內) ===
+if (typeof regionCircles !== 'undefined') {
+  // Reuse the same centroid and radius as the '威尼斯、熱內亞、批薩' entry if present;
+  // otherwise, compute afresh and fallback to '義大利、希臘' radius.
+  const _vgp_center = [44.521033, 10.555133];
+  let _ita_grc_r = (regionCircles['義大利、希臘'] && regionCircles['義大利、希臘'].radius)
+      ? regionCircles['義大利、希臘'].radius
+      : (regionCircles['沙烏地阿拉伯'] ? regionCircles['沙烏地阿拉伯'].radius : 1000000);
+  regionCircles['威尼斯、熱那亞、批薩'] = { center: _vgp_center, radius: _ita_grc_r };
+}
+// === END PATCH v6-fix ===
+
+
+
 // === PATCH v6: Map '威尼斯、熱內亞、批薩' to centroid of (Venice, Genoa, Pisa) with radius same as '義大利、希臘' ===
 // Venice (45.4408, 12.3155), Genoa (44.4056, 8.9463), Pisa (43.7167, 10.4036) 
 // => centroid (~44.521033, 10.555133)
