@@ -56,15 +56,6 @@ const regionCircles = {
   '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 }
 };
 
-
-// === PATCH v9: Map '台灣北部' to a circle centered on New Taipei City with radius covering Yilan & Hsinchu ===
-// New Taipei City approx center (~25.016, 121.465)
-if (typeof regionCircles !== 'undefined') {
-  regionCircles['台灣北部'] = { center: [25.016, 121.465], radius: 120000 }; // 120 km to cover Yilan & Hsinchu
-}
-// === END PATCH v9 ===
-
-
 const regionMarkers = {
   '中國北京': [39.9042, 116.4074],
   '中國山西': [37.8735, 112.5624],
@@ -104,19 +95,6 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
-
-// === PATCH: Map '台灣西南部/臺灣西南部' to the '台灣台南' marker (safe, no regex changes) ===
-(function(){
-  if (typeof regionMarkers === 'undefined') return;
-  const tainan = regionMarkers['台灣台南'] || regionMarkers['台灣臺南'] || [22.9998, 120.2269];
-  regionMarkers['台灣台南'] = tainan;
-  regionMarkers['台灣臺南'] = tainan;
-  regionMarkers['台灣西南部'] = tainan;
-  regionMarkers['臺灣西南部'] = tainan;
-})();
-// === END PATCH ===
-
-
 function parseVideos(videoString) {
   if (!videoString) return [];
   return videoString.split(/[；;]/)
@@ -153,37 +131,6 @@ function generateExpandedContent(event) {
       if (!event.courseContent) return true;
       return !event.courseContent.includes(videoUrl);
     });
-
-// === PATCH v15-inline-fixed: 絲綢之路 polyline 直接在 map 初始化之後繪製 ===
-window.map = map; // 暴露到全域，方便其他外掛存取
-
-var silkRoadCoords = [
-  [34.3, 108.9], // 西安（長安）
-  [36.1, 103.8], // 蘭州
-  [40.1, 94.7],  // 敦煌
-  [39.5, 76.0],  // 喀什
-  [39.6, 66.9],  // 撒馬爾罕
-  [35.7, 51.4],  // 德黑蘭
-  [39.9, 32.9],  // 安卡拉
-  [41.0, 28.9]   // 伊斯坦堡
-];
-
-var silkRoadLine = L.polyline(silkRoadCoords, {
-  color: '#cc6600',
-  weight: 4,
-  opacity: 0.9,
-  dashArray: '10,6'
-}).addTo(map);
-
-silkRoadLine.bindPopup('絲綢之路');
-
-silkRoadCoords.forEach(function(pt){
-  L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(map);
-});
-
-console.log('✅ Silk Road polyline added inline after map init (fixed)');
-// === END PATCH v15-inline-fixed ===
-
     
     if (additionalVideos.length > 0) {
       expandedContent += '<div class="videos-section"><strong>相關影片：</strong>';
@@ -488,21 +435,6 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
-
-// === PATCH: Force '台灣桃園/臺灣桃園' to use Taipei marker ===
-(function(){
-  try {
-    const taipei = (typeof regionMarkers !== 'undefined' && (regionMarkers['台灣台北'] || regionMarkers['臺灣台北'])) || [25.0375, 121.5635];
-    const loc = row && row['地區'];
-    if (loc === '台灣桃園' || loc === '臺灣桃園') {
-      event.coords = taipei;
-      if (event.region) delete event.region; // prevent area-circle fallback
-      event.labelOnly = false;
-    }
-  } catch (e) {}
-})();
-// === END PATCH ===
-
 
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
