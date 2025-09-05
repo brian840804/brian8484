@@ -110,6 +110,15 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
+
+// === PATCH v3: Map '古巴' to Cuba's geometric center as a marker (no radius) ===
+// Approx centroid of Cuba (~21.5°N, 80.0°W)
+if (typeof regionMarkers !== 'undefined') {
+  regionMarkers['古巴'] = [21.5, -80.0];
+}
+// === END PATCH v3 ===
+
+
 function parseVideos(videoString) {
   if (!videoString) return [];
   return videoString.split(/[；;]/)
