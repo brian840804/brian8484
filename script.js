@@ -68,6 +68,45 @@ const silkRoadRoutes = {
 const __getSilkCoords = silkRoadRoutes['絲路'] ? silkRoadRoutes['絲路'].coords
                         : ((silkRoadRoutes['以線條呈現絲綢之路路徑'] || {}).coords || []);
 let silkMidpoint = null;
+
+// Compute geodesic distance (haversine) in meters
+function __hv(lat1, lon1, lat2, lon2){
+  const toRad = (d)=>d*Math.PI/180;
+  const R = 6371000;
+  const dLat = toRad(lat2-lat1);
+  const dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  const c = 2*Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R*c;
+}
+// Linear interpolate between two lat/lngs
+function __lerp(p1, p2, t){
+  return [ p1[0] + (p2[0]-p1[0])*t, p1[1] + (p2[1]-p1[1])*t ];
+}
+// Find the midpoint along the polyline by length
+let silkMidpointOnPath = null;
+(function(){
+  const coords = __getSilkCoords;
+  if (!Array.isArray(coords) || coords.length < 2) return;
+  let segLens = [];
+  let total = 0;
+  for (let i=0; i<coords.length-1; i++){
+    const a = coords[i], b = coords[i+1];
+    const d = __hv(a[0],a[1],b[0],b[1]);
+    segLens.push(d);
+    total += d;
+  }
+  let half = total/2;
+  for (let i=0; i<segLens.length; i++){
+    if (half > segLens[i]) { half -= segLens[i]; continue; }
+    const a = coords[i], b = coords[i+1];
+    const t = segLens[i] === 0 ? 0 : (half/segLens[i]);
+    silkMidpointOnPath = __lerp(a,b,t);
+    break;
+  }
+  if (!silkMidpointOnPath) silkMidpointOnPath = coords[Math.floor(coords.length/2)];
+})();
+
 if (Array.isArray(__getSilkCoords) && __getSilkCoords.length > 0) {
   let __sumLat = 0, __sumLng = 0;
   __getSilkCoords.forEach(c => { __sumLat += c[0]; __sumLng += c[1]; });
@@ -585,7 +624,7 @@ if (row['地區'] && silkRoadRoutes[row['地區']]) {
 
 // Special placement: '西方食材進入中國' -> put at silkMidpoint as label-only (no pin, no radius)
 if (row['事件'] === '西方食材進入中國' && silkMidpoint) {
-  event.coords = silkMidpoint;
+  event.coords = (silkMidpointOnPath || silkMidpoint);
   event.labelOnly = true;
   if (event.region) delete event.region; // avoid area circle fallback
 }
