@@ -104,34 +104,6 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
-
-// === PATCH: Map '台灣桃園' to Taoyuan City marker (also normalize 台/臺 variants) ===
-(function(){
-  if (typeof regionMarkers === 'undefined') return;
-  const taoyuan = regionMarkers['台灣桃園市'] || regionMarkers['臺灣桃園市'] || [24.993, 121.296];
-  // Ensure city keys exist
-  regionMarkers['台灣桃園市'] = taoyuan;
-  regionMarkers['臺灣桃園市'] = taoyuan;
-  // Alias '台灣桃園' (and variant) to the same coordinates
-  regionMarkers['台灣桃園'] = taoyuan;
-  regionMarkers['臺灣桃園'] = taoyuan;
-})();
-// === END PATCH ===
-
-
-
-// === PATCH: Map '台灣西南部/臺灣西南部' to the '台灣台南' marker (safe, no regex changes) ===
-(function(){
-  if (typeof regionMarkers === 'undefined') return;
-  const tainan = regionMarkers['台灣台南'] || regionMarkers['台灣臺南'] || [22.9998, 120.2269];
-  regionMarkers['台灣台南'] = tainan;
-  regionMarkers['台灣臺南'] = tainan;
-  regionMarkers['台灣西南部'] = tainan;
-  regionMarkers['臺灣西南部'] = tainan;
-})();
-// === END PATCH ===
-
-
 function parseVideos(videoString) {
   if (!videoString) return [];
   return videoString.split(/[；;]/)
@@ -150,7 +122,9 @@ function generatePanelContent(row, year) {
   // 只返回基本資訊，詳細內容等展開時再處理
   return `<div><strong>時代：</strong>${year < 0 ? '西元前' + Math.abs(year) : '西元' + year}年</div>` +
          `<div><strong>地區：</strong>${row['地區']}</div>` +
-         `<div><strong>摘要：</strong>${(row['摘要'] || '').replace(/\r\n|\r|\n/g, '<br>')}</div>`;
+         `<div><strong>摘要：</strong>${(row['摘要'] || '').replace(/
+||
+/g, '<br>')}</div>`;
 }
 
 function generateExpandedContent(event) {
@@ -301,7 +275,8 @@ const embedCode = '<div style="margin: 16px 0; padding: 12px; background: rgba(2
   }
   
 // 處理圖文並排 - 圖片在左，對應段落文字在右
-content = content.replace(/([^<>\n\r]+?)【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi, function(match, textContent, filename) {
+content = content.replace(/([^<>
+]+?)【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi, function(match, textContent, filename) {
   const imagePath = 'images/ancient-foods/' + filename;
   console.log('🖼️ 找到圖文並排:', filename, '對應文字:', textContent.substring(0, 50) + '...');
   
@@ -332,7 +307,9 @@ content = content.replace(/【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi,
 });
   
   // 處理換行
-  content = content.replace(/\r\n|\r|\n/g, '<br>');
+  content = content.replace(/
+||
+/g, '<br>');
   
   console.log('=== 處理後的內容 ===');
   console.log(content);
@@ -472,13 +449,6 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
-
-// Special label offset: avoid overlap for '孤軍的米干'
-if (row['事件'] === '孤軍的米干') {
-  // You can tweak these numbers if needed
-  event.labelOffset = [-28, -28]; // [dx, dy] in pixels: right 20px, up 24px
-}
-
 
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
@@ -821,19 +791,19 @@ function createClusterMarker(locationEvents, coords) {
     const ev = locationEvents[0];
     ev.marker = L.marker(coords, {
       icon: L.divIcon({
-        html: (function(){
-          const __off = ev.labelOffset || [0,0];
-          const __style = (__off[0] || __off[1]) ? ` style="transform: translate(${__off[0]}px, ${__off[1]}px)"` : '';
-          return `<div class="custom-marker">
-                    <div class="marker-pin"></div>
-                    <div class="marker-label"${__style}>${ev.name}</div>
-                  </div>`;
-        })(),
+        html: `<div class="custom-marker">
+                 <div class="marker-pin"></div>
+                 <div class="marker-label">${ev.name}</div>
+               </div>`,
         className: 'custom-marker-container',
-        iconSize: [220, 36],
+        iconSize: [150, 20],
         iconAnchor: [6, 10]
-      }),
-      zIndexOffset: (ev.name === '渡海而來的沙茶醬料' ? 10000 : 0)
+      })
+    });
+
+    ev.marker.on('click', function(e) {
+      showEventPanel(ev);
+      L.DomEvent.stopPropagation(e);
     });
     
     return ev.marker;
@@ -1652,3 +1622,31 @@ function showImageModal(imagePath, imageName) {
 
 // 將函數加到全域
 window.showImageModal = showImageModal;
+
+function __getYearFromLabel() {
+  const el = document.getElementById('time-current');
+  if (!el) return null;
+  const raw = (el.textContent || '').trim();
+
+  function __firstInt(str) {
+    let num = '';
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      if (c >= '0' && c <= '9') { num += c; }
+      else if (num) { break; }
+    }
+    return num ? parseInt(num, 10) : null;
+  }
+
+  if (raw.indexOf('西元前') !== -1) {
+    const v = __firstInt(raw);
+    return (v != null ? -v : null);
+  }
+  if (raw.indexOf('西元') !== -1) {
+    const v = __firstInt(raw);
+    return (v != null ? v : null);
+  }
+  const n = parseInt(raw, 10);
+  return isNaN(n) ? null : n;
+}
+
