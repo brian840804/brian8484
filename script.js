@@ -57,6 +57,15 @@ const regionCircles = {
 };
 
 
+// === PATCH v8: Silk Road polyline support ===
+// Define route keys that should render as polylines instead of point/circle markers
+const silkRoadRoutes = {
+  '絲路': {"type": "polyline", "coords": [[34.3416, 108.9398], [36.0611, 103.8343], [40.1421, 94.6619], [42.826, 93.515], [42.949, 89.19], [41.72, 82.96], [39.467, 75.993], [40.513, 72.816], [39.627, 66.974], [39.773, 64.425], [36.2605, 59.6168], [35.6892, 51.389], [33.3152, 44.3661], [33.5138, 36.2765], [36.206, 36.157], [41.0082, 28.9784]]},
+  '以線條呈現絲綢之路路徑': {"type": "polyline", "coords": [[34.3416, 108.9398], [36.0611, 103.8343], [40.1421, 94.6619], [42.826, 93.515], [42.949, 89.19], [41.72, 82.96], [39.467, 75.993], [40.513, 72.816], [39.627, 66.974], [39.773, 64.425], [36.2605, 59.6168], [35.6892, 51.389], [33.3152, 44.3661], [33.5138, 36.2765], [36.206, 36.157], [41.0082, 28.9784]]}
+};
+
+
+
 // === PATCH v7: Map '雅典；羅馬' and '雅典、羅馬' to same center & radius as '義大利、希臘' ===
 if (typeof regionCircles !== 'undefined') {
   // Ensure '義大利、希臘' exists with correct radius (mirrors prior patches)
@@ -559,6 +568,11 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
+// Route detection: if the region matches a defined route key, tag it
+if (row['地區'] && silkRoadRoutes[row['地區']]) {
+  event.routeKey = row['地區'];
+}
+
 
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
@@ -863,6 +877,29 @@ map.on('click', function(e) {
 loadingManager.updateProgress(80, '準備歷史事件...', '配置標記');
 loadingManager.nextStage();
 console.log('📌 創建事件標記...');
+
+// --- Silk Road route rendering ---
+const routeLayerGroup = L.layerGroup().addTo(map);
+const addedRouteKeys = new Set();
+events.filter(ev => ev.routeKey && silkRoadRoutes[ev.routeKey]).forEach(ev => {
+  const key = ev.routeKey;
+  if (addedRouteKeys.has(key)) return;
+  const route = silkRoadRoutes[key];
+  const line = L.polyline(route.coords, {
+    color: '#FF9500',    // iOS orange to match theme
+    weight: 4,
+    opacity: 0.85,
+    dashArray: '8,6'
+  }).addTo(routeLayerGroup);
+  line.bringToFront();
+  line.on('click', (e) => {
+    showEventPanel(ev);
+    L.DomEvent.stopPropagation(e);
+  });
+  line.on('mouseover', () => line.setStyle({ weight: 6, opacity: 1 }));
+  line.on('mouseout',  () => line.setStyle({ weight: 4, opacity: 0.85 }));
+  addedRouteKeys.add(key);
+});
 let createdMarkers = 0;
 let createdCircles = 0;
 
