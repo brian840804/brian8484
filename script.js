@@ -880,6 +880,44 @@ console.log('📌 創建事件標記...');
 
 // --- Silk Road route rendering ---
 const routeLayerGroup = L.layerGroup().addTo(map);
+
+// --- Silk Road visibility: show only at year 0 ---
+function __getYearFromLabel() {
+  const el = document.getElementById('time-current');
+  if (!el) return null;
+  const t = (el.textContent || '').trim();
+  // 西元前
+  let m = t.match(/西元前\s*(\d+)/);
+  if (m) return -parseInt(m[1], 10);
+  // 西元
+  m = t.match(/西元\s*(\d+)/);
+  if (m) return parseInt(m[1], 10);
+  // fallback: any integer
+  m = t.match(/-?\d+/);
+  if (m) return parseInt(m[0], 10);
+  return null;
+}
+
+function __updateSilkVisibility() {
+  const yr = __getYearFromLabel();
+  if (yr === 0) {
+    if (!map.hasLayer(routeLayerGroup)) routeLayerGroup.addTo(map);
+  } else {
+    if (map.hasLayer(routeLayerGroup)) map.removeLayer(routeLayerGroup);
+  }
+}
+
+// Initial check (after current stack)
+setTimeout(__updateSilkVisibility, 0);
+
+// Watch the label and toggle on change
+(function(){
+  const el = document.getElementById('time-current');
+  if (!el || typeof MutationObserver === 'undefined') return;
+  const obs = new MutationObserver(function(){ __updateSilkVisibility(); });
+  obs.observe(el, { childList: true, characterData: true, subtree: true });
+})();
+
 const addedRouteKeys = new Set();
 events.filter(ev => ev.routeKey && silkRoadRoutes[ev.routeKey]).forEach(ev => {
   const key = ev.routeKey;
