@@ -57,6 +57,27 @@ const regionCircles = {
 };
 
 
+// === PATCH v5: Map '義大利、希臘' to midpoint of Rome–Athens with radius same as Saudi Arabia ===
+// Rome (41.9028, 12.4964), Athens (37.9838, 23.7275) => midpoint (~39.9433, 18.11195)
+if (typeof regionCircles !== 'undefined') {
+  // Ensure '沙烏地阿拉伯' radius exists; if not, derive from '中南美洲' (1.8e6 default) with 0.6 factor
+  if (!regionCircles['沙烏地阿拉伯']) {
+    if (!regionCircles['中南美洲']) {
+      regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
+    }
+    const _tmp_latam = regionCircles['中南美洲'].radius || 1800000;
+    regionCircles['沙烏地阿拉伯'] = { center: [23.9, 45.1], radius: Math.max(300000, Math.floor(_tmp_latam * 0.6)) };
+  }
+  const _ita_grc_mid = [39.9433, 18.11195];
+  const _ksa_radius = (regionCircles['沙烏地阿拉伯'] && regionCircles['沙烏地阿拉伯'].radius)
+      ? regionCircles['沙烏地阿拉伯'].radius
+      : Math.max(300000, Math.floor(((regionCircles['中南美洲'] && regionCircles['中南美洲'].radius) ? regionCircles['中南美洲'].radius : 1800000) * 0.6));
+  regionCircles['義大利、希臘'] = { center: _ita_grc_mid, radius: _ksa_radius };
+}
+// === END PATCH v5 ===
+
+
+
 // === PATCH v4: Map '沙烏地阿拉伯' to KSA geometric center with radius smaller than '中南美洲' ===
 // Approx centroid of Saudi Arabia (~23.9°N, 45.1°E)
 if (typeof regionCircles !== 'undefined') {
