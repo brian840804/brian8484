@@ -145,7 +145,8 @@ function generatePanelContent(row, year) {
   return `<div><strong>時代：</strong>${year < 0 ? '西元前' + Math.abs(year) : '西元' + year}年</div>` +
          `<div><strong>地區：</strong>${row['地區']}</div>` +
          `<div><strong>摘要：</strong>${(row['摘要'] || '').replace(/
-||
+|
+|
 /g, '<br>')}</div>`;
 }
 
@@ -298,7 +299,8 @@ const embedCode = '<div style="margin: 16px 0; padding: 12px; background: rgba(2
   
 // 處理圖文並排 - 圖片在左，對應段落文字在右
 content = content.replace(/([^<>
-]+?)【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi, function(match, textContent, filename) {
+
+]+?)【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi, function(match, textContent, filename) {
   const imagePath = 'images/ancient-foods/' + filename;
   console.log('🖼️ 找到圖文並排:', filename, '對應文字:', textContent.substring(0, 50) + '...');
   
@@ -330,7 +332,8 @@ content = content.replace(/【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi,
   
   // 處理換行
   content = content.replace(/
-||
+|
+|
 /g, '<br>');
   
   console.log('=== 處理後的內容 ===');
@@ -1676,3 +1679,33 @@ window.showImageModal = showImageModal;
   for (const k of twswKeys) { regionMarkers[k] = tainan; }
 })();
 // === END PATCH v10-fix ===
+
+
+function __getYearFromLabel() {
+  const el = document.getElementById('time-current');
+  if (!el) return null;
+  const raw = (el.textContent || '').trim();
+
+  // Helper: extract first integer from a string without regex
+  function __firstInt(str) {
+    let num = '';
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      if (c >= '0' && c <= '9') { num += c; }
+      else if (num) { break; }
+    }
+    return num ? parseInt(num, 10) : null;
+  }
+
+  if (raw.indexOf('西元前') !== -1) {
+    const v = __firstInt(raw);
+    return (v != null ? -v : null);
+  }
+  if (raw.indexOf('西元') !== -1) {
+    const v = __firstInt(raw);
+    return (v != null ? v : null);
+  }
+  const n = parseInt(raw, 10);
+  return isNaN(n) ? null : n;
+}
+
