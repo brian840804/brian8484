@@ -865,16 +865,27 @@ window.silkRoadHalo = silkRoadHalo;
 window.silkRoadLine = silkRoadLine;
 
 function updateSilkRoadVisibility() {
-      try {
-        if (typeof map === 'undefined') return;
-        const show = (Number(currentYear) === 0);
-        const halo = (typeof window !== 'undefined') ? window.silkRoadHalo : undefined;
-        const line = (typeof window !== 'undefined') ? window.silkRoadLine : undefined;
-        if (!halo || !line) return; // 尚未初始化絲路圖層
-        if (show) {
-          if (!map.hasLayer(halo)) halo.addTo(map);
-          if (!map.hasLayer(line)) line.addTo(map);
-        } else {
+  try {
+    if (typeof map === 'undefined') return;
+    const show = (Number(currentYear) === 0);
+    const halo = (typeof window !== 'undefined') ? window.silkRoadHalo : undefined;
+    const line = (typeof window !== 'undefined') ? window.silkRoadLine : undefined;
+    if (!halo || !line) return; // 尚未初始化絲路圖層
+    if (show) {
+      if (!map.hasLayer(halo)) halo.addTo(map);
+      if (!map.hasLayer(line)) line.addTo(map);
+    } else {
+      if (map.hasLayer(halo)) map.removeLayer(halo);
+      if (map.hasLayer(line)) map.removeLayer(line);
+    }
+  } catch (e) {
+    console.warn('updateSilkRoadVisibility error', e);
+  }
+}
+} catch (e) {
+    console.warn('updateSilkRoadVisibility error', e);
+  }
+}else {
           if (map.hasLayer(halo)) map.removeLayer(halo);
           if (map.hasLayer(line)) map.removeLayer(line);
         }
