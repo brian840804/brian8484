@@ -104,28 +104,6 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
-
-// === PATCH v11: Alias '台灣西南部/臺灣西南部' to Tainan marker (same as '鄭家的商船') ===
-(function(){
-  if (typeof regionMarkers === 'undefined') return;
-  const tainan = regionMarkers['台灣台南'] || regionMarkers['台灣臺南'] || [22.9998, 120.2269];
-  regionMarkers['台灣台南'] = tainan;
-  regionMarkers['台灣臺南'] = tainan;
-  regionMarkers['台灣西南部'] = tainan;
-  regionMarkers['臺灣西南部'] = tainan;
-})();
-// === END PATCH v11 ===
-
-
-
-// === PATCH v10: Alias '台灣西南部' to the same marker as '台灣台南' ===
-if (typeof regionMarkers !== 'undefined') {
-  const _tainan = regionMarkers['台灣台南'] || [22.9998, 120.2269];
-  regionMarkers['台灣西南部'] = _tainan;
-}
-// === END PATCH v10 ===
-
-
 function parseVideos(videoString) {
   if (!videoString) return [];
   return videoString.split(/[；;]/)
@@ -144,10 +122,7 @@ function generatePanelContent(row, year) {
   // 只返回基本資訊，詳細內容等展開時再處理
   return `<div><strong>時代：</strong>${year < 0 ? '西元前' + Math.abs(year) : '西元' + year}年</div>` +
          `<div><strong>地區：</strong>${row['地區']}</div>` +
-         `<div><strong>摘要：</strong>${(row['摘要'] || '').replace(/
-|
-|
-/g, '<br>')}</div>`;
+         `<div><strong>摘要：</strong>${(row['摘要'] || '').replace(/\r\n|\r|\n/g, '<br>')}</div>`;
 }
 
 function generateExpandedContent(event) {
@@ -298,9 +273,7 @@ const embedCode = '<div style="margin: 16px 0; padding: 12px; background: rgba(2
   }
   
 // 處理圖文並排 - 圖片在左，對應段落文字在右
-content = content.replace(/([^<>
-
-]+?)【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi, function(match, textContent, filename) {
+content = content.replace(/([^<>\n\r]+?)【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi, function(match, textContent, filename) {
   const imagePath = 'images/ancient-foods/' + filename;
   console.log('🖼️ 找到圖文並排:', filename, '對應文字:', textContent.substring(0, 50) + '...');
   
@@ -331,10 +304,7 @@ content = content.replace(/【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi,
 });
   
   // 處理換行
-  content = content.replace(/
-|
-|
-/g, '<br>');
+  content = content.replace(/\r\n|\r|\n/g, '<br>');
   
   console.log('=== 處理後的內容 ===');
   console.log(content);
@@ -474,19 +444,6 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
-
-// Force same location for '台灣西南部/臺灣西南部' as the event '鄭家的商船' (Tainan)
-(function(){
-  try {
-    const tainan = (typeof regionMarkers !== 'undefined' && (regionMarkers['台灣台南'] || regionMarkers['台灣臺南'])) || [22.9998, 120.2269];
-    if (row['地區'] === '台灣西南部' || row['地區'] === '臺灣西南部') {
-      event.coords = tainan;
-      if (event.region) delete event.region;
-      event.labelOnly = false;
-    }
-  } catch (e) { /* no-op */ }
-})();
-
 
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
@@ -1660,52 +1617,3 @@ function showImageModal(imagePath, imageName) {
 
 // 將函數加到全域
 window.showImageModal = showImageModal;
-
-
-// === PATCH v10-fix: Normalize '台/臺' variants for Tainan & Taiwan Southwest aliases ===
-(function(){
-  if (typeof regionMarkers === 'undefined') return;
-  const tainanKeys = ['台灣台南','台灣臺南'];
-  let tainan = null;
-  for (const k of tainanKeys) {
-    if (regionMarkers[k]) { tainan = regionMarkers[k]; break; }
-  }
-  if (!tainan) { tainan = [22.9998, 120.2269]; } // fallback Tainan coords
-  // Enforce both Tainan keys to same coords
-  regionMarkers['台灣台南'] = tainan;
-  regionMarkers['台灣臺南'] = tainan;
-  // Alias Taiwan Southwest variants to Tainan coords
-  const twswKeys = ['台灣西南部','臺灣西南部'];
-  for (const k of twswKeys) { regionMarkers[k] = tainan; }
-})();
-// === END PATCH v10-fix ===
-
-
-function __getYearFromLabel() {
-  const el = document.getElementById('time-current');
-  if (!el) return null;
-  const raw = (el.textContent || '').trim();
-
-  // Helper: extract first integer from a string without regex
-  function __firstInt(str) {
-    let num = '';
-    for (let i = 0; i < str.length; i++) {
-      const c = str[i];
-      if (c >= '0' && c <= '9') { num += c; }
-      else if (num) { break; }
-    }
-    return num ? parseInt(num, 10) : null;
-  }
-
-  if (raw.indexOf('西元前') !== -1) {
-    const v = __firstInt(raw);
-    return (v != null ? -v : null);
-  }
-  if (raw.indexOf('西元') !== -1) {
-    const v = __firstInt(raw);
-    return (v != null ? v : null);
-  }
-  const n = parseInt(raw, 10);
-  return isNaN(n) ? null : n;
-}
-
