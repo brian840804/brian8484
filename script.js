@@ -853,28 +853,17 @@ const silkRoadHalo = L.polyline(silkRoadCoords, {
   opacity: 0.9,
   lineJoin: 'round',
   interactive: false
-});
+}).addTo(map);
 const silkRoadLine = L.polyline(silkRoadCoords, {
   color: '#FF9500',
   weight: 4,
   opacity: 1.0,
   lineJoin: 'round'
-});
+}).addTo(map);
 
 window.silkRoadHalo = silkRoadHalo;
 window.silkRoadLine = silkRoadLine;
-
-function updateSilkRoadVisibility() {
-  try {
-    if (typeof map === 'undefined') return;
-    const show = (Number(currentYear) === 0);
-    const halo = (typeof window !== 'undefined') ? window.silkRoadHalo : undefined;
-    const line = (typeof window !== 'undefined') ? window.silkRoadLine : undefined;
-    if (!halo || !line) return; // 尚未初始化絲路圖層
-    if (show) {
-      if (!map.hasLayer(halo)) halo.addTo(map);
-      if (!map.hasLayer(line)) line.addTo(map);
-    } else {
+else {
       if (map.hasLayer(halo)) map.removeLayer(halo);
       if (map.hasLayer(line)) map.removeLayer(line);
     }
@@ -1331,7 +1320,6 @@ function updateVisibleEvents() {
       });
       
   // 結尾同步絲路顯示（只在 year=0 顯示）
-  updateSilkRoadVisibility();
 }
     
     if (coords) {
@@ -1345,7 +1333,6 @@ function updateVisibleEvents() {
   panel.classList.remove('visible');
 
   // 結尾同步絲路顯示（只在 year=0 顯示）
-  updateSilkRoadVisibility();
 }
 
   // 章節選擇器事件
@@ -1354,8 +1341,7 @@ function updateVisibleEvents() {
       selectedSections = Array.from(document.querySelectorAll('.section-checkbox:checked')).map(b => b.value);
       console.log('📋 更新選中章節:', selectedSections);
       updateVisibleEvents();
-  updateSilkRoadVisibility();
-    });
+});
   });
 
   // 地區快速縮放
@@ -1563,8 +1549,6 @@ document.querySelector('.tick-menu-container').appendChild(eraSpansContainer);
       
       // 更新可見事件
       updateVisibleEvents();
-      
-        updateSilkRoadVisibility();
 // 關閉面板
       panel.classList.remove('visible');
     });
@@ -1588,8 +1572,6 @@ tickItem.addEventListener('mouseleave', function() {
   // 初始載入
   console.log('🎬 執行初始更新...');
   updateVisibleEvents();
-  
-    updateSilkRoadVisibility();
 loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
 loadingManager.nextStage();
 loadingManager.hide();
