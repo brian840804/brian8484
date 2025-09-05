@@ -830,7 +830,7 @@ function createClusterMarker(locationEvents, coords) {
                   </div>`;
         })(),
         className: 'custom-marker-container',
-        iconSize: [150, 20],
+        iconSize: [220, 36],
         iconAnchor: [6, 10]
       })
     });
