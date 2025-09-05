@@ -64,6 +64,17 @@ const silkRoadRoutes = {
   '以線條呈現絲綢之路路徑': {"type": "polyline", "coords": [[34.3416, 108.9398], [36.0611, 103.8343], [40.1421, 94.6619], [42.826, 93.515], [42.949, 89.19], [41.72, 82.96], [39.467, 75.993], [40.513, 72.816], [39.627, 66.974], [39.773, 64.425], [36.2605, 59.6168], [35.6892, 51.389], [33.3152, 44.3661], [33.5138, 36.2765], [36.206, 36.157], [41.0082, 28.9784]]}
 };
 
+// Compute Silk Road midpoint (simple average of coords)
+const __getSilkCoords = silkRoadRoutes['絲路'] ? silkRoadRoutes['絲路'].coords
+                        : ((silkRoadRoutes['以線條呈現絲綢之路路徑'] || {}).coords || []);
+let silkMidpoint = null;
+if (Array.isArray(__getSilkCoords) && __getSilkCoords.length > 0) {
+  let __sumLat = 0, __sumLng = 0;
+  __getSilkCoords.forEach(c => { __sumLat += c[0]; __sumLng += c[1]; });
+  silkMidpoint = [__sumLat / __getSilkCoords.length, __sumLng / __getSilkCoords.length];
+}
+
+
 
 
 // === PATCH v7: Map '雅典；羅馬' and '雅典、羅馬' to same center & radius as '義大利、希臘' ===
@@ -570,7 +581,15 @@ loadingManager.nextStage();
 };
 // Route detection: if the region matches a defined route key, tag it
 if (row['地區'] && silkRoadRoutes[row['地區']]) {
-  event.routeKey = row['地區'];
+  
+
+// Special placement: '西方食材進入中國' -> put at silkMidpoint as label-only (no pin, no radius)
+if (row['事件'] === '西方食材進入中國' && silkMidpoint) {
+  event.coords = silkMidpoint;
+  event.labelOnly = true;
+  if (event.region) delete event.region; // avoid area circle fallback
+}
+event.routeKey = row['地區'];
 }
 
 
