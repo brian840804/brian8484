@@ -115,6 +115,31 @@ const regionMarkers = {
   regionMarkers['臺灣西南部'] = tainan;
 })();
 // === END PATCH ===
+let __skipDefaultPlacement = false;
+// === PATCH v10: 台北+高雄「雙標記」與特別樣式旗標 ===
+(function () {
+  try {
+    const loc = (row && row['地區']) ? String(row['地區']) : '';
+    const hasTaipei = loc.includes('台灣台北') || loc.includes('臺灣台北');
+    const hasKaohsiung = loc.includes('台灣高雄') || loc.includes('臺灣高雄');
+
+    if (hasTaipei && hasKaohsiung) {
+      const taipei = (typeof regionMarkers !== 'undefined' && regionMarkers['台灣台北']) || [25.0375, 121.5637];
+      const kaohsiung = (typeof regionMarkers !== 'undefined' && regionMarkers['台灣高雄']) || [22.6273, 120.3014];
+
+      const base = event;
+      const ev1 = { ...base, coords: taipei, region: undefined, __twDual: true, __twCity: '台北' };
+      const ev2 = { ...base, coords: kaohsiung, region: undefined, __twDual: true, __twCity: '高雄' };
+
+      events.push(ev1); successfulEvents++;
+      events.push(ev2); successfulEvents++;
+      console.log(`   ✅ 事件已雙標記於台北與高雄: ${event.name}`);
+      __skipDefaultPlacement = true;
+    }
+  } catch (e) {}
+})();
+// === END PATCH v10 ===
+
 
 
 function parseVideos(videoString) {
@@ -471,8 +496,34 @@ loadingManager.nextStage();
   } catch (e) {}
 })();
 // === END PATCH ===
+let __skipDefaultPlacement = false;
+// === PATCH v10: 台北+高雄「雙標記」與特別樣式旗標 ===
+(function () {
+  try {
+    const loc = (row && row['地區']) ? String(row['地區']) : '';
+    const hasTaipei = loc.includes('台灣台北') || loc.includes('臺灣台北');
+    const hasKaohsiung = loc.includes('台灣高雄') || loc.includes('臺灣高雄');
+
+    if (hasTaipei && hasKaohsiung) {
+      const taipei = (typeof regionMarkers !== 'undefined' && regionMarkers['台灣台北']) || [25.0375, 121.5637];
+      const kaohsiung = (typeof regionMarkers !== 'undefined' && regionMarkers['台灣高雄']) || [22.6273, 120.3014];
+
+      const base = event;
+      const ev1 = { ...base, coords: taipei, region: undefined, __twDual: true, __twCity: '台北' };
+      const ev2 = { ...base, coords: kaohsiung, region: undefined, __twDual: true, __twCity: '高雄' };
+
+      events.push(ev1); successfulEvents++;
+      events.push(ev2); successfulEvents++;
+      console.log(`   ✅ 事件已雙標記於台北與高雄: ${event.name}`);
+      __skipDefaultPlacement = true;
+    }
+  } catch (e) {}
+})();
+// === END PATCH v10 ===
 
 
+
+          if (!__skipDefaultPlacement) {
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
             event.coords = regionMarkers[row['地區']];
@@ -516,6 +567,8 @@ if (event.videos.length > 0 || event.images.length > 0) {
     原始圖片欄位: row['圖片資訊']
   });
 }
+
+          } // end dual-skip guard
 
 events.push(event);
 successfulEvents++;
@@ -812,11 +865,13 @@ function createClusterMarker(locationEvents, coords) {
   if (eventCount === 1) {
     // 單一事件，使用原本的標記
     const ev = locationEvents[0];
+    const pinClass = ev.__twDual ? 'marker-pin tw-dual' : 'marker-pin';
+    const labelSuffix = (ev.__twDual && ev.__twCity) ? `（${ev.__twCity}）` : '';
     ev.marker = L.marker(coords, {
       icon: L.divIcon({
         html: `<div class="custom-marker">
-                 <div class="marker-pin"></div>
-                 <div class="marker-label">${ev.name}</div>
+                 <div class="${pinClass}"></div>
+                 <div class="marker-label">${ev.name}${labelSuffix}</div>
                </div>`,
         className: 'custom-marker-container',
         iconSize: [150, 20],
