@@ -859,19 +859,11 @@ const silkRoadHalo = L.polyline(silkRoadCoords, {
 
 // 主色線（iOS 紅，比較亮眼）
 const silkRoadLine = L.polyline(silkRoadCoords, {
-  color: '#FF3B30',
+  color: '#FF9500',
   weight: 4,
   opacity: 1.0,
   lineJoin: 'round'
-}).addTo(map);
-
-// 置中顯示路名
-silkRoadLine.bindTooltip('絲綢之路', {
-  permanent: true,
-  direction: 'center',
-  opacity: 0.9
-});
-/* === END NEW === */
+}).addTo(map);/* === END NEW === */
 
   } catch (err) {
     console.error('❌ 地圖載入失敗:', err);
