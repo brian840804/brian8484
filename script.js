@@ -594,9 +594,9 @@ const map = L.map('map', {
 
     var silkLayer = L.layerGroup().addTo(map);
     L.polyline(silkRoadCoords, {
-      color: '#cc6600',
-      weight: 4,
-      opacity: 0.9,
+      color: '#b22222',
+      weight: 6,
+      opacity: 1.0,
       dashArray: '10,6'
     }).addTo(silkLayer).bindPopup('絲綢之路');
 
