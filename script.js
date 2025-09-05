@@ -576,42 +576,6 @@ const map = L.map('map', {
   zoomControl: false  // 添加這行來移除縮放按鈕
 }).setView(initialCenter, initialZoom);
 
-// === PATCH v16c: 絲綢之路 polyline（準確插入於 map 初始化語句之後） ===
-(function(){
-  try {
-    window.map = map; // 暴露給全域使用
-
-    var silkRoadCoords = [
-      [34.3, 108.9], // 西安（長安）
-      [36.1, 103.8], // 蘭州
-      [40.1, 94.7],  // 敦煌
-      [39.5, 76.0],  // 喀什
-      [39.6, 66.9],  // 撒馬爾罕
-      [35.7, 51.4],  // 德黑蘭
-      [39.9, 32.9],  // 安卡拉
-      [41.0, 28.9]   // 伊斯坦堡
-    ];
-
-    var silkLayer = L.layerGroup().addTo(map);
-    L.polyline(silkRoadCoords, {
-      color: '#cc6600',
-      weight: 4,
-      opacity: 0.9,
-      dashArray: '10,6'
-    }).addTo(silkLayer).bindPopup('絲綢之路');
-
-    silkRoadCoords.forEach(function(pt){
-      L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(silkLayer);
-    });
-
-    console.log('✅ v16c Silk Road inline ready');
-  } catch(e) {
-    console.warn('Silk Road v16c failed:', e && e.message);
-  }
-})();
-// === END PATCH v16c ===
-
-
   // 載入地理資料
 const LAND_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_land.geojson';
 const COAST_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_coastline.geojson';
@@ -1637,6 +1601,46 @@ if (e.key === 'Escape') {
 
 })().catch(error => {
   console.error('💥 初始化過程中發生嚴重錯誤:', error);
+
+// === PATCH v16d: 絲綢之路 polyline（加粗加深色版） ===
+(function(){
+  try {
+    window.map = map;
+
+    if (window.__SILK_ROAD_LAYER__) {
+      try { map.removeLayer(window.__SILK_ROAD_LAYER__); } catch(e){}
+    }
+    var silkLayer = window.__SILK_ROAD_LAYER__ = L.layerGroup().addTo(map);
+
+    var silkRoadCoords = [
+      [34.3, 108.9],
+      [36.1, 103.8],
+      [40.1, 94.7],
+      [39.5, 76.0],
+      [39.6, 66.9],
+      [35.7, 51.4],
+      [39.9, 32.9],
+      [41.0, 28.9]
+    ];
+
+    L.polyline(silkRoadCoords, {
+      color: '#b22222',   // 深紅色 FireBrick
+      weight: 6,          // 線寬加粗
+      opacity: 1.0,       // 完全不透明
+      dashArray: '10,6'
+    }).addTo(silkLayer).bindPopup('絲綢之路');
+
+    silkRoadCoords.forEach(function(pt){
+      L.circleMarker(pt, { radius: 5, color: '#b22222', weight: 2, fillOpacity: 1.0 }).addTo(silkLayer);
+    });
+
+    console.log('✅ v16d Silk Road deep red line ready');
+  } catch(e) {
+    console.warn('Silk Road v16d failed:', e && e.message);
+  }
+})();
+// === END PATCH v16d ===
+
   alert('地圖初始化失敗，請刷新頁面重試');
 });
 
