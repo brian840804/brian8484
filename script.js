@@ -1561,11 +1561,13 @@ tickItem.addEventListener('mouseleave', function() {
   console.log('✅ 時間軸設置完成');
 
   // 初始載入
-  \1  updateSilkRoadForYear();
-loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
-loadingManager.nextStage();
-loadingManager.hide();
+  updateVisibleEvents();
+  updateSilkRoadForYear();
+  loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
+  loadingManager.nextStage();
+  loadingManager.hide();
   console.log('🎉 歷史飲食地圖初始化完成！');
+
 
   // 添加鍵盤快捷鍵
   document.addEventListener('keydown', function(e) {
