@@ -105,6 +105,19 @@ const regionMarkers = {
 };
 
 
+// === PATCH v11: Alias '台灣西南部/臺灣西南部' to Tainan marker (same as '鄭家的商船') ===
+(function(){
+  if (typeof regionMarkers === 'undefined') return;
+  const tainan = regionMarkers['台灣台南'] || regionMarkers['台灣臺南'] || [22.9998, 120.2269];
+  regionMarkers['台灣台南'] = tainan;
+  regionMarkers['台灣臺南'] = tainan;
+  regionMarkers['台灣西南部'] = tainan;
+  regionMarkers['臺灣西南部'] = tainan;
+})();
+// === END PATCH v11 ===
+
+
+
 // === PATCH v10: Alias '台灣西南部' to the same marker as '台灣台南' ===
 if (typeof regionMarkers !== 'undefined') {
   const _tainan = regionMarkers['台灣台南'] || [22.9998, 120.2269];
@@ -453,6 +466,19 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
+
+// Force same location for '台灣西南部/臺灣西南部' as the event '鄭家的商船' (Tainan)
+(function(){
+  try {
+    const tainan = (typeof regionMarkers !== 'undefined' && (regionMarkers['台灣台南'] || regionMarkers['台灣臺南'])) || [22.9998, 120.2269];
+    if (row['地區'] === '台灣西南部' || row['地區'] === '臺灣西南部') {
+      event.coords = tainan;
+      if (event.region) delete event.region;
+      event.labelOnly = false;
+    }
+  } catch (e) { /* no-op */ }
+})();
+
 
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
