@@ -637,6 +637,36 @@ let __skipDefaultPlacement = false;
 
 
 
+          
+// === PATCH v14: 多國家地區解析與渲染 ===
+(function(){
+  try {
+    const rawRegion = (row && row['地區']) ? String(row['地區']).trim() : '';
+    if (!rawRegion) return;
+
+    // 只處理看起來是「多個國家」的情境（含「中歐」等區域詞）
+    const parts = rawRegion.replace(/（[^）]*）|\([^)]*\)/g, '').split(/[、，,\/;；及]/).map(s=>s.trim()).filter(Boolean);
+    if (parts.length < 2) return;
+
+    // 展開國家清單（含別名/區域展開），且必須都能找到座標
+    const countries = window.__expandCountries__(rawRegion).filter(c => window.__COUNTRY_MAP__ && window.__COUNTRY_MAP__[c]);
+    if (countries.length < 2) return;
+
+    // 判斷相鄰 or 不相鄰
+    const isAdj = window.__isAdjacentGroup__(countries);
+    if (isAdj) {
+      window.__renderAdjacentCountries__(countries, event);
+      __skipDefaultPlacement = true;
+      return;
+    } else {
+      window.__renderNonAdjacentCountries__(countries, event);
+      __skipDefaultPlacement = true;
+      return;
+    }
+  } catch(e){ /* 靜默失敗，落回預設 */ }
+})();
+// === END PATCH v14 ===
+
           if (!__skipDefaultPlacement) {
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
@@ -1965,3 +1995,230 @@ window.showImageModal = showImageModal;
   }
 })();
 // === END PATCH v13 ===
+
+// === PATCH v14: 多國家地區解析（國家中心、別名、區域展開、鄰接、輔助） ===
+(function(){
+  if (window.__MC_READY__) return;
+  window.__MC_READY__ = true;
+
+  // 國家中心點（簡版，足以覆蓋目前教材需求）
+  window.__COUNTRY_MAP__ = {
+    '義大利': [41.9, 12.5],
+    '希臘': [38.0, 23.7],
+    '法國': [46.2, 2.2],
+    '西班牙': [40.4, -3.7],
+    '英國': [54.0, -2.0],
+    '愛爾蘭': [53.3, -7.6],
+    '葡萄牙': [39.7, -8.0],
+    '德國': [51.2, 10.4],
+    '奧地利': [47.6, 14.1],
+    '捷克': [49.8, 15.5],
+    '波蘭': [52.1, 19.1],
+    '斯洛伐克': [48.7, 19.7],
+    '匈牙利': [47.2, 19.5],
+    '瑞士': [46.8, 8.2],
+    '斯洛文尼亞': [46.2, 14.9],
+    '荷蘭': [52.1, 5.3],
+    '比利時': [50.8, 4.5],
+    '丹麥': [56.0, 9.5],
+    '挪威': [60.5, 8.5],
+    '瑞典': [62.0, 15.0],
+    '芬蘭': [64.0, 26.0],
+    '美國': [39.8, -98.6],
+    '澳洲': [-25.3, 133.8],
+    '澳大利亞': [-25.3, 133.8],
+    '加拿大': [56.1, -106.3],
+    '墨西哥': [23.6, -102.6],
+    '土耳其': [39.0, 35.2],
+    '埃及': [26.8, 30.8],
+    '以色列': [31.0, 35.0]
+  };
+
+  // 別名（常見中文／英文）
+  window.__COUNTRY_ALIASES__ = {
+    '意大利': '義大利',
+    'UK': '英國', 'U.K.': '英國', 'United Kingdom': '英國', 'Britain': '英國', 'Great Britain': '英國',
+    'USA': '美國', 'U.S.A.': '美國', 'United States': '美國', 'United States of America': '美國', 'US': '美國', 'U.S.': '美國',
+    'Australia': '澳洲', 'AUS': '澳洲', 'Oz': '澳洲',
+    'Czech Republic': '捷克', 'Czechia': '捷克',
+    'Austria': '奧地利', 'Hungary': '匈牙利', 'Poland': '波蘭', 'Slovakia': '斯洛伐克',
+    'Slovenia': '斯洛文尼亞', 'Portugal': '葡萄牙', 'Ireland': '愛爾蘭',
+    'France': '法國', 'Italy': '義大利', 'Spain': '西班牙', 'Germany': '德國', 'Greece': '希臘',
+    'Netherlands': '荷蘭', 'Belgium': '比利時', 'Switzerland': '瑞士', 'Denmark': '丹麥',
+    'Norway': '挪威', 'Sweden': '瑞典', 'Finland': '芬蘭',
+    'Turkey': '土耳其', 'Egypt': '埃及', 'Israel': '以色列'
+  };
+
+  // 區域詞彙展開（先支援你提到的「中歐」）
+  window.__REGION_EXPANSION__ = {
+    '中歐': ['德國','奧地利','捷克','波蘭','斯洛伐克','匈牙利','瑞士','斯洛文尼亞']
+  };
+
+  // 鄰接關係（歐洲為主，含海峽近鄰）
+  window.__COUNTRY_ADJ__ = {
+    '義大利': ['法國','瑞士','奧地利','斯洛文尼亞','希臘'],
+    '希臘': ['義大利','土耳其','保加利亞','北馬其頓','阿爾巴尼亞'],
+    '法國': ['西班牙','義大利','德國','比利時','盧森堡','瑞士','英國'],
+    '西班牙': ['法國','葡萄牙'],
+    '英國': ['法國','愛爾蘭'],
+    '愛爾蘭': ['英國'],
+    '葡萄牙': ['西班牙'],
+    '德國': ['法國','比利時','荷蘭','盧森堡','瑞士','奧地利','捷克','波蘭','丹麥'],
+    '奧地利': ['德國','捷克','斯洛伐克','匈牙利','斯洛文尼亞','義大利','瑞士','列支敦士登'],
+    '捷克': ['德國','波蘭','斯洛伐克','奧地利'],
+    '波蘭': ['德國','捷克','斯洛伐克'],
+    '斯洛伐克': ['捷克','波蘭','奧地利','匈牙利'],
+    '匈牙利': ['斯洛伐克','奧地利','斯洛文尼亞','羅馬尼亞','塞爾維亞','克羅埃西亞','烏克蘭'],
+    '瑞士': ['法國','德國','奧地利','義大利'],
+    '斯洛文尼亞': ['義大利','奧地利','匈牙利','克羅埃西亞'],
+    '荷蘭': ['比利時','德國'],
+    '比利時': ['法國','荷蘭','盧森堡','德國'],
+    '丹麥': ['德國'],
+    '挪威': ['瑞典','芬蘭'],
+    '瑞典': ['挪威','芬蘭','丹麥'],
+    '芬蘭': ['瑞典','挪威'],
+    '土耳其': ['希臘','保加利亞']
+  };
+
+  // Haversine 距離（公尺）
+  window.__Haversine__ = function(a, b) {
+    const toRad = d => d * Math.PI / 180;
+    const R = 6371000;
+    const dLat = toRad(b[0]-a[0]);
+    const dLon = toRad(b[1]-a[1]);
+    const lat1 = toRad(a[0]), lat2 = toRad(b[0]);
+    const s = Math.sin(dLat/2)**2 + Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+    return 2 * R * Math.asin(Math.sqrt(s));
+  };
+
+  // 取得國家中心（含別名與區域展開）
+  window.__expandCountries__ = function(raw) {
+    // 切分
+    const base = raw.replace(/（[^）]*）|\([^)]*\)/g, '').replace(/\s+/g, '');
+    let parts = base.split(/[、，,\/;；及]/).map(s=>s.trim()).filter(Boolean);
+    // 別名＆區域展開
+    const out = [];
+    parts.forEach(p => {
+      const regionList = window.__REGION_EXPANSION__[p];
+      if (regionList) {
+        regionList.forEach(c => out.push(c));
+      } else {
+        const ali = window.__COUNTRY_ALIASES__[p] || p;
+        out.push(ali);
+      }
+    });
+    // 去重與保留順序
+    const seen = new Set();
+    return out.filter(c => {
+      if (seen.has(c)) return false;
+      seen.add(c); return true;
+    });
+  };
+
+  // 判斷是否「相鄰組」（以鄰接圖+距離閥值建連通）
+  window.__isAdjacentGroup__ = function(countries) {
+    const pts = countries.map(c => window.__COUNTRY_MAP__[c]).filter(Boolean);
+    if (countries.length <= 1 || pts.length !== countries.length) return false;
+    // 建圖：鄰接表 + 距離閥值（<= 650km 視為近鄰）
+    const G = {};
+    const TH = 650000;
+    countries.forEach(c => G[c] = new Set());
+    for (let i=0;i<countries.length;i++) {
+      for (let j=i+1;j<countries.length;j++) {
+        const a = countries[i], b = countries[j];
+        const aa = window.__COUNTRY_MAP__[a], bb = window.__COUNTRY_MAP__[b];
+        if (!aa || !bb) continue;
+        const adjList = window.__COUNTRY_ADJ__[a] || [];
+        const adj = adjList.includes(b);
+        const near = window.__Haversine__(aa, bb) <= TH;
+        if (adj || near) { G[a].add(b); G[b].add(a); }
+      }
+    }
+    // BFS 連通判定
+    const vis = new Set(); const q=[countries[0]]; vis.add(countries[0]);
+    while (q.length) {
+      const u = q.shift();
+      G[u].forEach(v=>{ if(!vis.has(v)){vis.add(v); q.push(v);} });
+    }
+    return vis.size === countries.length;
+  };
+
+  // 建立/取得多國家圖層
+  window.__getMCLayer__ = function() {
+    if (!window.__MC_LAYER__ && typeof L !== 'undefined' && window.map) {
+      window.__MC_LAYER__ = L.layerGroup().addTo(window.map);
+    }
+    return window.__MC_LAYER__;
+  };
+
+  // 畫相鄰組：每國一個 marker + circle
+  window.__renderAdjacentCountries__ = function(countries, event) {
+    const layer = window.__getMCLayer__();
+    if (!layer) return;
+    const R = 250000; // 250km
+    countries.forEach(c => {
+      const pt = window.__COUNTRY_MAP__[c];
+      if (!pt) return;
+      // 小圓點：沿用既有標記系統（推成事件，讓面板可用）
+      const ev = { ...event, coords: pt, region: undefined, __mcType: 'adj', __mcCountry: c };
+      events.push(ev); successfulEvents++;
+      // 半徑圈（純視覺）
+      try {
+        const circle = L.circle(pt, { radius: R, color: '#6c9', weight: 1, opacity: 0.8, fillOpacity: 0.08 });
+        circle.addTo(layer);
+      } catch(e){}
+    });
+  };
+
+  // 箭頭小圖示 HTML（用 CSS 邊框 + 旋轉）
+  window.__arrowIconHTML__ = function(deg){
+    return `<div style="width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:14px solid #555;transform: rotate(${deg}deg);"></div>`;
+  };
+
+  // 計算方位角（度）
+  window.__bearingDeg__ = function(a,b){
+    const toRad = d => d * Math.PI / 180, toDeg = r => r * 180 / Math.PI;
+    const lat1 = toRad(a[0]), lat2 = toRad(b[0]);
+    const dLon = toRad(b[1]-a[1]);
+    const y = Math.sin(dLon) * Math.cos(lat2);
+    const x = Math.cos(lat1)*Math.sin(lat2) - Math.sin(lat1)*Math.cos(lat2)*Math.cos(dLon);
+    const brng = Math.atan2(y,x);
+    return (toDeg(brng)+360)%360;
+  };
+
+  // 畫不相鄰組：依輸入順序連成折線，雙向箭頭，線上標籤
+  window.__renderNonAdjacentCountries__ = function(countries, event) {
+    const layer = window.__getMCLayer__();
+    if (!layer) return;
+    const pts = countries.map(c => window.__COUNTRY_MAP__[c]).filter(Boolean);
+    if (pts.length < 2) return;
+    // 折線
+    const line = L.polyline(pts, { color: '#888', weight: 3, opacity: 0.8, dashArray: '6,6' }).addTo(layer);
+    // 對每段添加雙向箭頭與段中標籤（使用事件名）
+    for (let i=0;i<pts.length-1;i++){
+      const a = pts[i], b = pts[i+1];
+      const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
+      const degAB = window.__bearingDeg__(a,b);
+      const degBA = window.__bearingDeg__(b,a);
+
+      try {
+        const iconA = L.divIcon({ html: window.__arrowIconHTML__(degAB), className: 'mc-arrow', iconSize: [0,0] });
+        const iconB = L.divIcon({ html: window.__arrowIconHTML__(degBA), className: 'mc-arrow', iconSize: [0,0] });
+        const off = 0.18; // 往端點內縮一點
+        const nearA = [a[0]*(1-off)+b[0]*off, a[1]*(1-off)+b[1]*off];
+        const nearB = [b[0]*(1-off)+a[0]*off, b[1]*(1-off)+a[1]*off];
+        L.marker(nearA, { icon: iconA, interactive:false }).addTo(layer);
+        L.marker(nearB, { icon: iconB, interactive:false }).addTo(layer);
+      } catch(e){}
+
+      try {
+        const label = L.divIcon({ html: `<div style="padding:2px 6px;background:rgba(0,0,0,.55);color:#fff;border-radius:6px;font-size:12px;pointer-events:none;">${event.name}</div>`,
+                                  className: 'mc-line-label', iconSize:[0,0] });
+        L.marker(mid, { icon: label, interactive:false }).addTo(layer);
+      } catch(e){}
+    }
+  };
+
+})();
+// === END PATCH v14 defs ===
+
