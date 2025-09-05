@@ -826,6 +826,53 @@ loadingManager.nextStage();
 
     map.fitBounds([[-60, -180], [75, 180]]);
     console.log('✅ 地圖初始化完成');
+
+/* === NEW: 陸上絲綢之路（清晰亮色 + 白色暈邊） === */
+// 主要節點（長安→河西走廊→西域→中亞→伊朗→安納托利亞→君士坦丁堡）
+const silkRoadCoords = [
+  [34.3416, 108.9398], // 長安（西安）
+  [36.0611, 103.8343], // 蘭州
+  [38.9250, 100.4490], // 張掖
+  [40.1420, 94.6610],  // 敦煌
+  [42.9500, 89.1900],  // 吐魯番
+  [39.4700, 75.9900],  // 喀什
+  [39.6542, 66.9597],  // 撒馬爾罕
+  [39.7670, 64.4230],  // 布哈拉
+  [37.6610, 62.1800],  // 默爾夫（梅爾夫）
+  [36.2605, 59.6168],  // 馬什哈德
+  [35.6892, 51.3890],  // 德黑蘭
+  [36.2021, 37.1343],  // 阿勒坡
+  [36.1990, 36.1600],  // 安條克（安塔基亞）
+  [37.8713, 32.4846],  // 科尼亞
+  [39.9334, 32.8597],  // 安卡拉
+  [41.0082, 28.9784]   // 君士坦丁堡（伊斯坦堡）
+];
+
+// 白色外圈（讓線更醒目）
+const silkRoadHalo = L.polyline(silkRoadCoords, {
+  color: '#FFFFFF',
+  weight: 8,
+  opacity: 0.9,
+  lineJoin: 'round',
+  interactive: false
+}).addTo(map);
+
+// 主色線（iOS 紅，比較亮眼）
+const silkRoadLine = L.polyline(silkRoadCoords, {
+  color: '#FF3B30',
+  weight: 4,
+  opacity: 1.0,
+  lineJoin: 'round'
+}).addTo(map);
+
+// 置中顯示路名
+silkRoadLine.bindTooltip('絲綢之路', {
+  permanent: true,
+  direction: 'center',
+  opacity: 0.9
+});
+/* === END NEW === */
+
   } catch (err) {
     console.error('❌ 地圖載入失敗:', err);
   }
