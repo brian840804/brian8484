@@ -827,6 +827,63 @@ loadingManager.nextStage();
     map.fitBounds([[-60, -180], [75, 180]]);
     console.log('✅ 地圖初始化完成');
 
+// === 陸上絲綢之路（只在 year=0 顯示；橘色主線 + 白色暈邊） ===
+const silkRoadCoords = [
+  [34.3416, 108.9398], // 長安（西安）
+  [36.0611, 103.8343], // 蘭州
+  [38.9250, 100.4490], // 張掖
+  [40.1420, 94.6610],  // 敦煌
+  [42.9500, 89.1900],  // 吐魯番
+  [39.4700, 75.9900],  // 喀什
+  [39.6542, 66.9597],  // 撒馬爾罕
+  [39.7670, 64.4230],  // 布哈拉
+  [37.6610, 62.1800],  // 默爾夫（梅爾夫）
+  [36.2605, 59.6168],  // 馬什哈德
+  [35.6892, 51.3890],  // 德黑蘭
+  [36.2021, 37.1343],  // 阿勒坡
+  [36.1990, 36.1600],  // 安條克（安塔基亞）
+  [37.8713, 32.4846],  // 科尼亞
+  [39.9334, 32.8597],  // 安卡拉
+  [41.0082, 28.9784]   // 君士坦丁堡（伊斯坦堡）
+];
+
+const silkRoadHalo = L.polyline(silkRoadCoords, {
+  color: '#FFFFFF',
+  weight: 8,
+  opacity: 0.9,
+  lineJoin: 'round',
+  interactive: false
+});
+const silkRoadLine = L.polyline(silkRoadCoords, {
+  color: '#FF9500',
+  weight: 4,
+  opacity: 1.0,
+  lineJoin: 'round'
+});
+
+window.silkRoadHalo = silkRoadHalo;
+window.silkRoadLine = silkRoadLine;
+
+function updateSilkRoadVisibility() {
+      try {
+        if (typeof map === 'undefined') return;
+        const show = (Number(currentYear) === 0);
+        const halo = (typeof window !== 'undefined') ? window.silkRoadHalo : undefined;
+        const line = (typeof window !== 'undefined') ? window.silkRoadLine : undefined;
+        if (!halo || !line) return; // 尚未初始化絲路圖層
+        if (show) {
+          if (!map.hasLayer(halo)) halo.addTo(map);
+          if (!map.hasLayer(line)) line.addTo(map);
+        } else {
+          if (map.hasLayer(halo)) map.removeLayer(halo);
+          if (map.hasLayer(line)) map.removeLayer(line);
+        }
+      } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
+    }} catch (e) { console.warn('updateSilkRoadVisibility error', e); }
+}
+// === END 陸上絲綢之路 ===
+
+
 /* === NEW: 陸上絲綢之路（清晰亮色 + 白色暈邊） === */
 // 主要節點（長安→河西走廊→西域→中亞→伊朗→安納托利亞→君士坦丁堡）
 const silkRoadCoords = [
@@ -887,8 +944,8 @@ const silkRoadLine = L.polyline(silkRoadCoords, {
         }
       } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
     } else {
-          if (typeof window.window.silkRoadHalo !== 'undefined' && map.hasLayer(window.silkRoadHalo)) map.removeLayer(window.silkRoadHalo);
-          if (typeof window.window.silkRoadLine !== 'undefined' && map.hasLayer(window.silkRoadLine)) map.removeLayer(window.silkRoadLine);
+          if (typeof window.silkRoadHalo !== 'undefined' && map.hasLayer(window.silkRoadHalo)) map.removeLayer(window.silkRoadHalo);
+          if (typeof window.silkRoadLine !== 'undefined' && map.hasLayer(window.silkRoadLine)) map.removeLayer(window.silkRoadLine);
         }
       } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
     }
@@ -1291,9 +1348,7 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
-  console.log(`🔄 更新可見事件: ${currentYear  // 更新絲路顯示
-  updateSilkRoadVisibility();
-}年, 章節: ${selectedSections.join(', ')}`);
+  console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
   const locationGroups = groupEventsByLocation(
@@ -1322,7 +1377,10 @@ function updateVisibleEvents() {
       locationEvents.forEach(ev => {
         if (ev.areaLayer) map.addLayer(ev.areaLayer);
       });
-    }
+      
+  // 結尾同步絲路顯示（只在 year=0 顯示）
+  updateSilkRoadVisibility();
+}
     
     if (coords) {
       const marker = createClusterMarker(locationEvents, coords);
@@ -1336,6 +1394,7 @@ function updateVisibleEvents() {
 
   // 結尾同步絲路顯示（只在 year=0 顯示）
   updateSilkRoadVisibility();
+  updateSilkRoadVisibility();
 }
 
   // 章節選擇器事件
@@ -1344,6 +1403,7 @@ function updateVisibleEvents() {
       selectedSections = Array.from(document.querySelectorAll('.section-checkbox:checked')).map(b => b.value);
       console.log('📋 更新選中章節:', selectedSections);
       updateVisibleEvents();
+  updateSilkRoadVisibility();
   updateSilkRoadVisibility();
     });
   });
@@ -1579,7 +1639,8 @@ tickItem.addEventListener('mouseleave', function() {
   console.log('🎬 執行初始更新...');
   updateVisibleEvents();
   
-  loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
+    updateSilkRoadVisibility();
+loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
 loadingManager.nextStage();
 loadingManager.hide();
   console.log('🎉 歷史飲食地圖初始化完成！');
