@@ -118,9 +118,20 @@ function parseImages(imageString) {
     .filter(img => img);
 }
 
+
 function generatePanelContent(row, year) {
   // 只返回基本資訊，詳細內容等展開時再處理
-  return `<div><strong>時代：</strong>${year < 0 ? '西元前' + Math.abs(year) : '西元' + year}年</div>` +
+  const yearText = (year < 0) ? ('西元前' + Math.abs(year)) : ('西元' + year);
+  const areaText = String(row['地區'] || '');
+  let summary = String(row['摘要'] || '');
+  // 安全地將換行轉成 <br>，避免 regex 導致語法錯誤
+  summary = summary.split('\r').join('');
+  summary = summary.split('\n').join('<br>');
+  return `<div><strong>時代：</strong>${yearText}年</div>` +
+         `<div><strong>地區：</strong>${areaText}</div>` +
+         `<div><strong>摘要：</strong>${summary}</div>`;
+}
+年</div>` +
          `<div><strong>地區：</strong>${row['地區']}</div>` +
          `<div><strong>摘要：</strong>${(row['摘要'] || '').replace(/
 |
