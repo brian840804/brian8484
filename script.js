@@ -594,11 +594,10 @@ const map = L.map('map', {
 
     var silkLayer = L.layerGroup().addTo(map);
     L.polyline(silkRoadCoords, {
-      color: '#b22222',
+      color: '#cc6600',
       weight: 6,
       opacity: 1.0,
-      dashArray: '10,6'
-    }).addTo(silkLayer).bindPopup('絲綢之路');
+          }).addTo(silkLayer).bindPopup('絲綢之路');
 
     silkRoadCoords.forEach(function(pt){
       L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(silkLayer);
