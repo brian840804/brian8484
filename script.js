@@ -1608,3 +1608,10 @@ function showImageModal(imagePath, imageName) {
 
 // 將函數加到全域
 window.showImageModal = showImageModal;
+
+// === PATCH: Map '中南美洲' to South America's geometric center ===
+// Centroid approx. near Chapada dos Guimarães, Brazil (~15.6°S, 56.1°W)
+if (!regionCircles['中南美洲']) {
+  regionCircles['中南美洲'] = { center: [-15.6, -56.1], radius: 900000 };
+}
+// === END PATCH ===
