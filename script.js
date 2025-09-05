@@ -122,7 +122,10 @@ function generatePanelContent(row, year) {
   // 只返回基本資訊，詳細內容等展開時再處理
   return `<div><strong>時代：</strong>${year < 0 ? '西元前' + Math.abs(year) : '西元' + year}年</div>` +
          `<div><strong>地區：</strong>${row['地區']}</div>` +
-         `<div><strong>摘要：</strong>${(row['摘要'] || '').replace(/\r\n|\r|\n/g, '<br>')}</div>`;
+         `<div><strong>摘要：</strong>${(row['摘要'] || '').replace(/
+|
+|
+/g, '<br>')}</div>`;
 }
 
 function generateExpandedContent(event) {
@@ -273,7 +276,9 @@ const embedCode = '<div style="margin: 16px 0; padding: 12px; background: rgba(2
   }
   
 // 處理圖文並排 - 圖片在左，對應段落文字在右
-content = content.replace(/([^<>\n\r]+?)【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi, function(match, textContent, filename) {
+content = content.replace(/([^<>
+
+]+?)【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi, function(match, textContent, filename) {
   const imagePath = 'images/ancient-foods/' + filename;
   console.log('🖼️ 找到圖文並排:', filename, '對應文字:', textContent.substring(0, 50) + '...');
   
@@ -304,7 +309,10 @@ content = content.replace(/【(?:IMG：?)?([^】]+\.(?:jpg|jpeg|png|gif))】/gi,
 });
   
   // 處理換行
-  content = content.replace(/\r\n|\r|\n/g, '<br>');
+  content = content.replace(/
+|
+|
+/g, '<br>');
   
   console.log('=== 處理後的內容 ===');
   console.log(content);
@@ -1617,3 +1625,44 @@ function showImageModal(imagePath, imageName) {
 
 // 將函數加到全域
 window.showImageModal = showImageModal;
+
+function __getYearFromLabel() {
+  const el = document.getElementById('time-current');
+  if (!el) return null;
+  const raw = (el.textContent || '').trim();
+
+  function __firstInt(str) {
+    let num = '';
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      if (c >= '0' && c <= '9') { num += c; }
+      else if (num) { break; }
+    }
+    return num ? parseInt(num, 10) : null;
+  }
+
+  if (raw.indexOf('西元前') !== -1) {
+    const v = __firstInt(raw);
+    return (v != null ? -v : null);
+  }
+  if (raw.indexOf('西元') !== -1) {
+    const v = __firstInt(raw);
+    return (v != null ? v : null);
+  }
+  const n = parseInt(raw, 10);
+  return isNaN(n) ? null : n;
+}
+
+
+
+
+// === PATCH: Map '台灣西南部/臺灣西南部' to the '台灣台南' marker ===
+(function(){
+  if (typeof regionMarkers === 'undefined') return;
+  const tainan = regionMarkers['台灣台南'] || regionMarkers['台灣臺南'] || [22.9998, 120.2269];
+  regionMarkers['台灣台南'] = tainan; // normalize both
+  regionMarkers['台灣臺南'] = tainan;
+  regionMarkers['台灣西南部'] = tainan;
+  regionMarkers['臺灣西南部'] = tainan;
+})();
+// === END PATCH ===
