@@ -2224,64 +2224,76 @@ window.showImageModal = showImageModal;
 
 
 
-// === PATCH v15: 絲綢之路路線圖（Silk Road Polyline） ===
+// === PATCH v15.1: 絲綢之路路線圖（穩健找地圖版本） ===
 (function(){
-  // 以防地圖尚未初始化：輪詢等待 map 物件出現後再繪製（最多嘗試 60 次 ≈ 6 秒）
+  // 嘗試從 window 物件中找出任一個 Leaflet Map 實例
+  function findAnyLeafletMap() {
+    try {
+      if (typeof L === 'undefined') return null;
+      // 1) 常見命名
+      if (window.map && typeof window.map.addLayer === 'function') return window.map;
+      if (window.myMap && typeof window.myMap.addLayer === 'function') return window.myMap;
+      if (window.globalMap && typeof window.globalMap.addLayer === 'function') return window.globalMap;
+      // 2) 廣播遍歷 window（避免跨 realm instanceof 問題，改以 duck-typing 判斷）
+      const keys = Object.getOwnPropertyNames(window);
+      for (let i=0; i<keys.length; i++) {
+        const k = keys[i];
+        const v = window[k];
+        if (!v || typeof v !== 'object') continue;
+        // Leaflet Map 常見介面：addLayer / setView / _layers 皆存在
+        if (typeof v.addLayer === 'function' && typeof v.setView === 'function' && v._layers) {
+          return v;
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  const silkRoadCoords = [
+    [34.3, 108.9], // 西安（長安）
+    [36.1, 103.8], // 蘭州
+    [40.1, 94.7],  // 敦煌
+    [39.5, 76.0],  // 喀什
+    [39.6, 66.9],  // 撒馬爾罕
+    [35.7, 51.4],  // 德黑蘭
+    [39.9, 32.9],  // 安卡拉
+    [41.0, 28.9]   // 伊斯坦堡
+  ];
+
+  function drawSilkRoad(m) {
+    if (!m || typeof L === 'undefined') return;
+    // 防止重複畫
+    if (window.__SILK_ROAD_LAYER__) {
+      try { m.removeLayer(window.__SILK_ROAD_LAYER__); } catch(e) {}
+      window.__SILK_ROAD_LAYER__ = null;
+    }
+    const layer = (window.__SILK_ROAD_LAYER__ = L.layerGroup().addTo(m));
+    const line = L.polyline(silkRoadCoords, {
+      color: '#cc6600',
+      weight: 4,
+      opacity: 0.9,
+      dashArray: '10,6'
+    }).addTo(layer);
+    silkRoadCoords.forEach(pt => {
+      L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(layer);
+    });
+    const mid = silkRoadCoords[Math.floor(silkRoadCoords.length/2)];
+    const label = L.divIcon({
+      html: '<div style="padding:4px 8px;background:rgba(204,102,0,.85);color:#fff;border-radius:8px;font-size:12px;">絲綢之路</div>',
+      className: 'silkroad-label', iconSize: [0,0]
+    });
+    L.marker(mid, { icon: label }).addTo(layer);
+    console.log('✅ Silk Road polyline ready (v15.1)');
+  }
+
+  // 嘗試在 12 秒內尋找地圖，每 200ms 掃一次
   let tries = 0;
   const maxTries = 60;
-
-  const boot = function(){
-    try {
-      // 嘗試抓取地圖實例（假設全域變數為 map）
-      const m = window.map || (typeof getMap === 'function' ? getMap() : null);
-      if (!m || typeof L === 'undefined') throw new Error('map not ready');
-
-      // 建立圖層群組，之後若要隱藏/移除比較容易
-      const layer = (window.__SILK_ROAD_LAYER__ = L.layerGroup().addTo(m));
-
-      // 主幹節點（大略路徑，必要時可擴充/調整）
-      const silkRoadCoords = [
-        [34.3, 108.9], // 西安（長安） Xi'an
-        [36.1, 103.8], // 蘭州 Lanzhou
-        [40.1, 94.7],  // 敦煌 Dunhuang
-        [39.5, 76.0],  // 喀什 Kashgar
-        [39.6, 66.9],  // 撒馬爾罕 Samarkand
-        [35.7, 51.4],  // 德黑蘭 Tehran
-        [39.9, 32.9],  // 安卡拉 Ankara
-        [41.0, 28.9]   // 伊斯坦堡 Istanbul
-      ];
-
-      const line = L.polyline(silkRoadCoords, {
-        color: '#cc6600',
-        weight: 4,
-        opacity: 0.9,
-        dashArray: '10,6'
-      }).addTo(layer);
-
-      // 在每個節點放上小圓點，視覺更清楚
-      silkRoadCoords.forEach(pt => {
-        L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(layer);
-      });
-
-      // 中點標籤（可點）
-      const mid = silkRoadCoords[Math.floor(silkRoadCoords.length/2)];
-      const label = L.divIcon({
-        html: '<div style="padding:4px 8px;background:rgba(204,102,0,.85);color:#fff;border-radius:8px;font-size:12px;">絲綢之路</div>',
-        className: 'silkroad-label',
-        iconSize: [0,0]
-      });
-      L.marker(mid, { icon: label }).addTo(layer);
-
-      console.log('✅ Silk Road polyline ready (v15)');
-    } catch (e) {
-      if (++tries < maxTries) {
-        return setTimeout(boot, 100);
-      }
-      console.warn('Silk Road polyline init timeout:', e && e.message);
-    }
-  };
-
-  // 優先立即嘗試一次；若 map 尚未就緒則輪詢
-  boot();
+  (function boot(){
+    const m = findAnyLeafletMap();
+    if (m) return drawSilkRoad(m);
+    if (++tries < maxTries) return setTimeout(boot, 200);
+    console.warn('Silk Road polyline: 找不到 Leaflet 地圖實例，未繪製。');
+  })();
 })();
-// === END PATCH v15 ===
+// === END PATCH v15.1 ===
