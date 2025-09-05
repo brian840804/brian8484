@@ -104,6 +104,15 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
+
+// === PATCH v10: Alias '台灣西南部' to the same marker as '台灣台南' ===
+if (typeof regionMarkers !== 'undefined') {
+  const _tainan = regionMarkers['台灣台南'] || [22.9998, 120.2269];
+  regionMarkers['台灣西南部'] = _tainan;
+}
+// === END PATCH v10 ===
+
+
 function parseVideos(videoString) {
   if (!videoString) return [];
   return videoString.split(/[；;]/)
