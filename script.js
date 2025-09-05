@@ -458,6 +458,21 @@ loadingManager.nextStage();
   }
 };
 
+// === PATCH: Force '台灣桃園/臺灣桃園' to use Taipei marker ===
+(function(){
+  try {
+    const taipei = (typeof regionMarkers !== 'undefined' && (regionMarkers['台灣台北'] || regionMarkers['臺灣台北'])) || [25.0375, 121.5635];
+    const loc = row && row['地區'];
+    if (loc === '台灣桃園' || loc === '臺灣桃園') {
+      event.coords = taipei;
+      if (event.region) delete event.region; // prevent area-circle fallback
+      event.labelOnly = false;
+    }
+  } catch (e) {}
+})();
+// === END PATCH ===
+
+
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
             event.coords = regionMarkers[row['地區']];
