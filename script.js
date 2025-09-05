@@ -57,6 +57,22 @@ const regionCircles = {
 };
 
 
+// === PATCH v4: Map '沙烏地阿拉伯' to KSA geometric center with radius smaller than '中南美洲' ===
+// Approx centroid of Saudi Arabia (~23.9°N, 45.1°E)
+if (typeof regionCircles !== 'undefined') {
+  // Ensure '中南美洲' exists (from earlier patches); default 1,800 km if absent
+  if (!regionCircles['中南美洲']) {
+    regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
+  }
+  const _ksa_center = [23.9, 45.1];
+  const _latam_radius = (regionCircles['中南美洲'] && regionCircles['中南美洲'].radius) ? regionCircles['中南美洲'].radius : 1800000;
+  const _ksa_radius = Math.max(300000, Math.floor(_latam_radius * 0.6)); // smaller than LatAm
+  regionCircles['沙烏地阿拉伯'] = { center: _ksa_center, radius: _ksa_radius };
+}
+// === END PATCH v4 ===
+
+
+
 // === PATCH v2: Map '印尼' to Indonesia's geometric center and match radius to '中南美洲' ===
 // Approx geometric center of Indonesia (~2.5°S, 118.0°E) — near central Indonesian archipelago
 if (typeof regionCircles !== 'undefined') {
