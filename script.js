@@ -821,10 +821,14 @@ function createClusterMarker(locationEvents, coords) {
     const ev = locationEvents[0];
     ev.marker = L.marker(coords, {
       icon: L.divIcon({
-        html: `<div class="custom-marker">
-                 <div class="marker-pin"></div>
-                 <div class="marker-label">${ev.name}</div>
-               </div>`,
+        html: (function(){
+          const __off = ev.labelOffset || [0,0];
+          const __style = (__off[0] || __off[1]) ? ` style="transform: translate(${__off[0]}px, ${__off[1]}px)"` : '';
+          return `<div class="custom-marker">
+                    <div class="marker-pin"></div>
+                    <div class="marker-label"${__style}>${ev.name}</div>
+                  </div>`;
+        })(),
         className: 'custom-marker-container',
         iconSize: [150, 20],
         iconAnchor: [6, 10]
