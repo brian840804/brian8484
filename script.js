@@ -1602,16 +1602,14 @@ if (e.key === 'Escape') {
 })().catch(error => {
   console.error('💥 初始化過程中發生嚴重錯誤:', error);
 
-// === PATCH v16d: 絲綢之路 polyline（加粗加深色版） ===
+// === PATCH v16c-strong: 絲綢之路（深紅＋加粗版本，基於 v16c 插入點） ===
 (function(){
   try {
     window.map = map;
-
     if (window.__SILK_ROAD_LAYER__) {
       try { map.removeLayer(window.__SILK_ROAD_LAYER__); } catch(e){}
     }
     var silkLayer = window.__SILK_ROAD_LAYER__ = L.layerGroup().addTo(map);
-
     var silkRoadCoords = [
       [34.3, 108.9],
       [36.1, 103.8],
@@ -1622,24 +1620,19 @@ if (e.key === 'Escape') {
       [39.9, 32.9],
       [41.0, 28.9]
     ];
-
     L.polyline(silkRoadCoords, {
-      color: '#b22222',   // 深紅色 FireBrick
-      weight: 6,          // 線寬加粗
-      opacity: 1.0,       // 完全不透明
+      color: '#b22222', // 深紅色
+      weight: 6,        // 加粗
+      opacity: 1.0,     // 不透明
       dashArray: '10,6'
     }).addTo(silkLayer).bindPopup('絲綢之路');
-
     silkRoadCoords.forEach(function(pt){
       L.circleMarker(pt, { radius: 5, color: '#b22222', weight: 2, fillOpacity: 1.0 }).addTo(silkLayer);
     });
-
-    console.log('✅ v16d Silk Road deep red line ready');
-  } catch(e) {
-    console.warn('Silk Road v16d failed:', e && e.message);
-  }
+    console.log('✅ v16c-strong Silk Road deep red line ready');
+  } catch(e) { console.warn('Silk Road v16c-strong failed:', e && e.message); }
 })();
-// === END PATCH v16d ===
+// === END PATCH v16c-strong ===
 
   alert('地圖初始化失敗，請刷新頁面重試');
 });
