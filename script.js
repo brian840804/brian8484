@@ -574,32 +574,25 @@ const map = L.map('map', {
   zoomAnimation: true,
   attributionControl: false,
   zoomControl: false  // 添加這行來移除縮放按鈕
-})
+}).setView(initialCenter, initialZoom);
 
-// === PATCH v16b: 絲綢之路（inline + 圖層＆fitBounds + debug） ===
+// === PATCH v16c: 絲綢之路 polyline（準確插入於 map 初始化語句之後） ===
 (function(){
   try {
-    // 暴露地圖
-    window.map = map;
+    window.map = map; // 暴露給全域使用
 
-    // 新建絲路圖層（避免被其他 layer 清掉）
-    if (window.__SILK_ROAD_LAYER__) {
-      try { map.removeLayer(window.__SILK_ROAD_LAYER__); } catch(e){}
-    }
-    var silkLayer = window.__SILK_ROAD_LAYER__ = L.layerGroup().addTo(map);
-
-    // 路徑
     var silkRoadCoords = [
-      [34.3, 108.9],
-      [36.1, 103.8],
-      [40.1, 94.7],
-      [39.5, 76.0],
-      [39.6, 66.9],
-      [35.7, 51.4],
-      [39.9, 32.9],
-      [41.0, 28.9]
+      [34.3, 108.9], // 西安（長安）
+      [36.1, 103.8], // 蘭州
+      [40.1, 94.7],  // 敦煌
+      [39.5, 76.0],  // 喀什
+      [39.6, 66.9],  // 撒馬爾罕
+      [35.7, 51.4],  // 德黑蘭
+      [39.9, 32.9],  // 安卡拉
+      [41.0, 28.9]   // 伊斯坦堡
     ];
 
+    var silkLayer = L.layerGroup().addTo(map);
     L.polyline(silkRoadCoords, {
       color: '#cc6600',
       weight: 4,
@@ -611,24 +604,13 @@ const map = L.map('map', {
       L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(silkLayer);
     });
 
-    // 只在第一次載入自動聚焦（避免每次都搶視角）
-    if (!window.__SILK_ROAD_FIT_DONE__) {
-      try {
-        var b = silkLayer.getBounds();
-        if (b && b.isValid && b.isValid()) {
-          map.fitBounds(b, { padding: [24,24] });
-          window.__SILK_ROAD_FIT_DONE__ = true;
-        }
-      } catch(e){}
-    }
-
-    console.log('✅ v16b Silk Road inline ready. Layer:', window.__SILK_ROAD_LAYER__);
-  } catch (e) {
-    console.warn('Silk Road v16b failed:', e && e.message);
+    console.log('✅ v16c Silk Road inline ready');
+  } catch(e) {
+    console.warn('Silk Road v16c failed:', e && e.message);
   }
 })();
-// === END PATCH v16b ===
-.setView(initialCenter, initialZoom);
+// === END PATCH v16c ===
+
 
   // 載入地理資料
 const LAND_URL = 'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/ne_10m_land.geojson';
