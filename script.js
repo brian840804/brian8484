@@ -1625,4 +1625,21 @@ function showImageModal(imagePath, imageName) {
 }
 
 // 將函數加到全域
-window.showImageModal = showImageModal;
+window.showImageModal = showImageModal;\n\n
+// === PATCH v10-fix: Normalize '台/臺' variants for Tainan & Taiwan Southwest aliases ===
+(function(){
+  if (typeof regionMarkers === 'undefined') return;
+  const tainanKeys = ['台灣台南','台灣臺南'];
+  let tainan = null;
+  for (const k of tainanKeys) {
+    if (regionMarkers[k]) { tainan = regionMarkers[k]; break; }
+  }
+  if (!tainan) { tainan = [22.9998, 120.2269]; } // fallback Tainan coords
+  // Enforce both Tainan keys to same coords
+  regionMarkers['台灣台南'] = tainan;
+  regionMarkers['台灣臺南'] = tainan;
+  // Alias Taiwan Southwest variants to Tainan coords
+  const twswKeys = ['台灣西南部','臺灣西南部'];
+  for (const k of twswKeys) { regionMarkers[k] = tainan; }
+})();
+// === END PATCH v10-fix ===
