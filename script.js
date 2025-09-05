@@ -476,7 +476,7 @@ loadingManager.nextStage();
 // Special label offset: avoid overlap for '孤軍的米干'
 if (row['事件'] === '孤軍的米干') {
   // You can tweak these numbers if needed
-  event.labelOffset = [20, -24]; // [dx, dy] in pixels: right 20px, up 24px
+  event.labelOffset = [-28, -28]; // [dx, dy] in pixels: right 20px, up 24px
 }
 
 
