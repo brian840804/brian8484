@@ -762,6 +762,37 @@ loadingManager.nextStage();
   const initialCenter = [20, 0];
   const initialZoom = 3;
 const map = L.map('map', {
+
+// === PATCH v15-inline: 絲綢之路 polyline 直接在初始化後繪製 ===
+window.map = map; // 暴露到全域，方便其他外掛存取
+
+var silkRoadCoords = [
+  [34.3, 108.9], // 西安（長安）
+  [36.1, 103.8], // 蘭州
+  [40.1, 94.7],  // 敦煌
+  [39.5, 76.0],  // 喀什
+  [39.6, 66.9],  // 撒馬爾罕
+  [35.7, 51.4],  // 德黑蘭
+  [39.9, 32.9],  // 安卡拉
+  [41.0, 28.9]   // 伊斯坦堡
+];
+
+var silkRoadLine = L.polyline(silkRoadCoords, {
+  color: '#cc6600',
+  weight: 4,
+  opacity: 0.9,
+  dashArray: '10,6'
+}).addTo(map);
+
+silkRoadLine.bindPopup('絲綢之路');
+
+silkRoadCoords.forEach(function(pt){
+  L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(map);
+});
+
+console.log('✅ Silk Road polyline added inline after map init');
+// === END PATCH v15-inline ===
+
   maxBounds: [[-60, -180], [75, 180]],
   maxBoundsViscosity: 1,
   minZoom: 3,
@@ -2222,37 +2253,3 @@ window.showImageModal = showImageModal;
 })();
 // === END PATCH v14 defs ===
 
-
-
-// === PATCH v15-simple: 絲綢之路（最簡版，直接 addTo(map)） ===
-(function(){
-  if (typeof L === 'undefined' || typeof map === 'undefined' || !map) return;
-
-  var silkRoadCoords = [
-    [34.3, 108.9], // 西安（長安）
-    [36.1, 103.8], // 蘭州
-    [40.1, 94.7],  // 敦煌
-    [39.5, 76.0],  // 喀什
-    [39.6, 66.9],  // 撒馬爾罕
-    [35.7, 51.4],  // 德黑蘭
-    [39.9, 32.9],  // 安卡拉
-    [41.0, 28.9]   // 伊斯坦堡
-  ];
-
-  var silkRoadLine = L.polyline(silkRoadCoords, {
-    color: '#cc6600',
-    weight: 4,
-    opacity: 0.9,
-    dashArray: '10,6'
-  }).addTo(map);
-
-  silkRoadLine.bindPopup('絲綢之路');
-
-  // 節點小圓點（可拿掉）
-  silkRoadCoords.forEach(function(pt){
-    L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(map);
-  });
-
-  console.log('✅ Silk Road polyline added via addTo(map)');
-})();
-// === END PATCH v15-simple ===
