@@ -1,28 +1,3 @@
-
-// === Safe Layer Add/Remove Wrapper (auto-injected) ===
-(function(){
-  try {
-    if (typeof L !== 'undefined' && L.Map && !L.Map.prototype.__safePatched) {
-      const _add = L.Map.prototype.addLayer;
-      const _remove = L.Map.prototype.removeLayer;
-      function isLeafletLayer(x){
-        return !!(x && (typeof x.addTo === 'function' || typeof x.on === 'function') &&
-                 (x.getLatLng || x.getBounds || x.getLayers));
-      }
-      L.Map.prototype.addLayer = function(layer){
-        if (!isLeafletLayer(layer)) { console.warn('⛔ skip addLayer: invalid layer', layer); return this; }
-        try { return _add.call(this, layer); } catch(e){ console.warn('⛔ addLayer failed:', e, layer); return this; }
-      };
-      L.Map.prototype.removeLayer = function(layer){
-        if (!isLeafletLayer(layer)) return this;
-        try { return _remove.call(this, layer); } catch(e){ console.warn('⛔ removeLayer failed:', e, layer); return this; }
-      };
-      L.Map.prototype.__safePatched = true;
-    }
-  } catch(e){ console.warn('safe patch init error', e); }
-})();
-// === End Safe Wrapper ===
-
 const regionCircles = {
   '歐洲(西歐)': { center: [48, 5], radius: 700000 },
   '歐洲(中歐)': { center: [51, 15], radius: 650000 },
@@ -81,6 +56,15 @@ const regionCircles = {
   '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 }
 };
 
+
+// === PATCH v9: Map '台灣北部' to a circle centered on New Taipei City with radius covering Yilan & Hsinchu ===
+// New Taipei City approx center (~25.016, 121.465)
+if (typeof regionCircles !== 'undefined') {
+  regionCircles['台灣北部'] = { center: [25.016, 121.465], radius: 120000 }; // 120 km to cover Yilan & Hsinchu
+}
+// === END PATCH v9 ===
+
+
 const regionMarkers = {
   '中國北京': [39.9042, 116.4074],
   '中國山西': [37.8735, 112.5624],
@@ -119,6 +103,19 @@ const regionMarkers = {
   '巴西聖保羅': [-23.5505, -46.6333],
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
+
+
+// === PATCH: Map '台灣西南部/臺灣西南部' to the '台灣台南' marker (safe, no regex changes) ===
+(function(){
+  if (typeof regionMarkers === 'undefined') return;
+  const tainan = regionMarkers['台灣台南'] || regionMarkers['台灣臺南'] || [22.9998, 120.2269];
+  regionMarkers['台灣台南'] = tainan;
+  regionMarkers['台灣臺南'] = tainan;
+  regionMarkers['台灣西南部'] = tainan;
+  regionMarkers['臺灣西南部'] = tainan;
+})();
+// === END PATCH ===
+
 
 function parseVideos(videoString) {
   if (!videoString) return [];
@@ -461,6 +458,21 @@ loadingManager.nextStage();
   }
 };
 
+// === PATCH: Force '台灣桃園/臺灣桃園' to use Taipei marker ===
+(function(){
+  try {
+    const taipei = (typeof regionMarkers !== 'undefined' && (regionMarkers['台灣台北'] || regionMarkers['臺灣台北'])) || [25.0375, 121.5635];
+    const loc = row && row['地區'];
+    if (loc === '台灣桃園' || loc === '臺灣桃園') {
+      event.coords = taipei;
+      if (event.region) delete event.region; // prevent area-circle fallback
+      event.labelOnly = false;
+    }
+  } catch (e) {}
+})();
+// === END PATCH ===
+
+
           // 優先使用精確座標
           if (regionMarkers[row['地區']]) {
             event.coords = regionMarkers[row['地區']];
@@ -526,8 +538,7 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
 
   // 模糊匹配函數
   function findFuzzyMatch(target, availableRegions) {
-      if (/[、\/,;；，與及和—\-至]/.test(target)) { return null; }
-const targetLower = target.toLowerCase();
+    const targetLower = target.toLowerCase();
     const regions = Object.keys(availableRegions);
     
     // 精確匹配
@@ -663,6 +674,62 @@ function addMapGrid() {
       opacity: 0.1,
       interactive: false
     });
+
+// === PATCH v16: 絲綢之路（可見度/偵錯加強版） ===
+(function(){
+  try {
+    // 1) 暴露地圖到全域
+    window.map = map;
+
+    // 2) 先移除舊圖層避免重複
+    if (window.__SILK_ROAD_LAYER__) {
+      try { map.removeLayer(window.__SILK_ROAD_LAYER__); } catch(e) {}
+      window.__SILK_ROAD_LAYER__ = null;
+    }
+
+    // 3) 建立專屬圖層
+    var silkLayer = window.__SILK_ROAD_LAYER__ = L.layerGroup().addTo(map);
+
+    // 4) 路徑節點（可自行增減/微調）
+    var silkRoadCoords = [
+      [34.3, 108.9], // 西安（長安）
+      [36.1, 103.8], // 蘭州
+      [40.1, 94.7],  // 敦煌
+      [39.5, 76.0],  // 喀什
+      [39.6, 66.9],  // 撒馬爾罕
+      [35.7, 51.4],  // 德黑蘭
+      [39.9, 32.9],  // 安卡拉
+      [41.0, 28.9]   // 伊斯坦堡
+    ];
+
+    // 5) 畫線
+    var silkRoadLine = L.polyline(silkRoadCoords, {
+      color: '#cc6600',
+      weight: 4,
+      opacity: 0.9,
+      dashArray: '10,6'
+    }).addTo(silkLayer).bindPopup('絲綢之路');
+
+    // 6) 每個節點加上小圓點
+    silkRoadCoords.forEach(function(pt){
+      L.circleMarker(pt, { radius: 4, color: '#cc6600', weight: 2, fillOpacity: 0.9 }).addTo(silkLayer);
+    });
+
+    // 7) 自動縮放到絲路範圍（第一次載入時很有用）
+    try {
+      var b = silkLayer.getBounds();
+      if (b && b.isValid && b.isValid()) {
+        map.fitBounds(b, { padding: [24,24] });
+      }
+    } catch(e) {}
+
+    console.log('✅ v16 Silk Road ready. Layer = window.__SILK_ROAD_LAYER__');
+  } catch (e) {
+    console.warn('Silk Road v16 init failed:', e && e.message);
+  }
+})();
+// === END PATCH v16 ===
+
     gridLines.push(line);
   }
   // 緯線
@@ -801,8 +868,7 @@ function createClusterMarker(locationEvents, coords) {
   if (eventCount === 1) {
     // 單一事件，使用原本的標記
     const ev = locationEvents[0];
-    if (ev.__customRendered) { return; }
-ev.marker = L.marker(coords, {
+    ev.marker = L.marker(coords, {
       icon: L.divIcon({
         html: `<div class="custom-marker">
                  <div class="marker-pin"></div>
@@ -838,9 +904,7 @@ ev.marker = L.marker(coords, {
     
     // 將聚合標記關聯到所有事件
     locationEvents.forEach(ev => {
-      
-      if (ev.__customRendered) return;
-ev.clusterMarker = clusterMarker;
+      ev.clusterMarker = clusterMarker;
     });
     
     return clusterMarker;
@@ -985,9 +1049,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
       if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
         locationEvents.forEach(ev => {
-          
-      if (ev.__customRendered) return;
-ev.areaLayer = L.circle(reg.center, {
+          ev.areaLayer = L.circle(reg.center, {
             radius: reg.radius,
             color: '#3b82f6',
             fillColor: '#dbeafe',
@@ -1047,383 +1109,8 @@ function returnToPreviousView() {
 }
 
   // 更新可見事件
-
-// === Injected: Multi-location & Region Logic Engine ===
-const MULTI_SEP_REGEX = /[、\/,;；，與及和—\-]+/;
-function tokenizeRegions(s) {
-  if (!s) return [];
-  if (s.includes('至')) {
-    const parts = s.split('至').map(t => t.trim()).filter(Boolean);
-    if (parts.length === 2) return { type: 'range', a: parts[0], b: parts[1] };
-  }
-  const list = s.split(MULTI_SEP_REGEX).map(t => t.trim()).filter(Boolean);
-  if (list.length > 1) return { type: 'multi', items: list };
-  return { type: 'single', value: s.trim() };
-}
-
-function normalizeTaiwanName(name) {
-  name = name.replace('臺灣', '台灣').replace('臺北', '台北');
-  if (REGION_ALIASES[name]) name = REGION_ALIASES[name];
-  return name;
-}
-
-const TAIWAN_COUNTY_CENTERS = {
-  '台北': [25.0375, 121.5637], '新北': [25.0123, 121.4657],
-  '桃園': [24.9936, 121.2969], '新竹': [24.8138, 120.9675],
-  '苗栗': [24.5602, 120.8214], '台中': [24.1477, 120.6736],
-  '彰化': [24.0722, 120.5434], '南投': [23.9609, 120.9719],
-  '雲林': [23.7092, 120.5420], '嘉義': [23.4801, 120.4491],
-  '台南': [23.1417, 120.2513], '高雄': [22.6273, 120.3014],
-  '屏東': [22.5519, 120.5485], '宜蘭': [24.7021, 121.7378],
-  '花蓮': [23.9872, 121.6016], '台東': [22.7554, 121.1417],
-  '澎湖': [23.5711, 119.5797], '金門': [24.4367, 118.3186],
-  '連江': [26.1600, 119.9517]
-};
-
-const CONTINENT_CENTERS = {
-  '歐洲': { center: [54.5, 15], radius: 1800000 },
-  '亞洲': { center: [34, 100], radius: 2600000 },
-  '非洲': { center: [1, 20], radius: 2600000 },
-  '北美洲': { center: [45, -100], radius: 2600000 },
-  '南美洲': { center: [-15, -60], radius: 2200000 },
-  '大洋洲': { center: [-25, 135], radius: 2200000 }
-};
-
-
-// Aliases / synonyms for regions and common typos
-const REGION_ALIASES = {
-  '中南美洲': '南美洲',
-  '美洲': '美洲(整體)',
-  '全世界': '世界',
-  '中東': '西亞',
-  '近東': '西亞',
-  '遠東': '東亞',
-  '東南亞': '東南亞',
-  '南亞': '南亞',
-  '中亞': '中亞',
-  '東亞': '東亞',
-  '西亞': '西亞',
-  '北非': '北非',
-  '北歐': '北歐',
-  '西歐': '西歐',
-  '東歐': '東歐',
-  '南歐': '南歐',
-  '中歐': '中歐',
-  '伊色列': '以色列', // typo
-  '敘利亞': '敍利亞' // alternate, just as example; we still check originals
-};
-
-// Region centers for broad macro areas (meters radius)
-const MACRO_REGION_CENTERS = {
-  '世界':      { center: [10, 0], radius: 8000000 },
-  '美洲(整體)': { center: [10, -75], radius: 4500000 },
-  '西亞':      { center: [33, 45], radius: 1500000 },
-  '東亞':      { center: [30, 110], radius: 1600000 },
-  '南亞':      { center: [22, 78], radius: 1400000 },
-  '東南亞':    { center: [12, 104], radius: 1200000 },
-  '中亞':      { center: [44, 70], radius: 1400000 },
-  '北非':      { center: [27, 17], radius: 1200000 },
-  '北歐':      { center: [62, 15], radius: 1100000 },
-  '西歐':      { center: [49, 5],  radius: 1200000 },
-  '東歐':      { center: [52, 25], radius: 1200000 },
-  '南歐':      { center: [42, 15], radius: 1000000 },
-  '中歐':      { center: [49, 15], radius: 900000 }
-};
-
-
-function deg2rad(d){return d*Math.PI/180}
-function haversine(a,b){
-  const R=6371000;
-  const dLat=deg2rad(b[0]-a[0]); const dLon=deg2rad(b[1]-a[1]);
-  const lat1=deg2rad(a[0]); const lat2=deg2rad(b[0]);
-  const sinDLat=Math.sin(dLat/2), sinDLon=Math.sin(dLon/2);
-  const h=sinDLat*sinDLat + Math.cos(lat1)*Math.cos(lat2)*sinDLon*sinDLon;
-  return 2*R*Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-function offsetDirection(base, dir){
-  let [lat, lon] = base;
-  const dLat = 2.0, dLon = 2.0;
-  if (dir.includes('北')) lat += dLat;
-  if (dir.includes('南')) lat -= dLat;
-  if (dir.includes('東')) lon += dLon;
-  if (dir.includes('西')) lon -= dLon;
-  return [lat, lon];
-}
-
-function resolveNameToPoint(name){
-  if (!name) return null;
-  name = normalizeTaiwanName(name);
-  if (name === '台灣' || name === '臺灣') {
-    if (regionMarkers['台灣']) return regionMarkers['台灣'];
-    if (regionCircles['台灣']) return regionCircles['台灣'].center;
-    return [23.7, 121.0];
-  }
-  if (name.startsWith('台灣')) {
-    const sub = name.replace('台灣', '').trim();
-    if (TAIWAN_COUNTY_CENTERS[sub]) return TAIWAN_COUNTY_CENTERS[sub];
-  }
-  if (name.startsWith('中國')) {
-    const base = (regionCircles['中國'] && regionCircles['中國'].center) || [35.0, 103.8];
-    const dir = name.replace('中國', '');
-    if (dir) return offsetDirection(base, dir);
-    return base;
-  }
-  const dirMatch = name.match(/(.*?)(北部|南部|東部|西部)$/);
-  if (dirMatch) {
-    const baseName = dirMatch[1].trim();
-    const dir = dirMatch[2];
-    const base = (regionMarkers[baseName]) ? regionMarkers[baseName]
-                 : (regionCircles[baseName] ? regionCircles[baseName].center : null);
-    if (base) return offsetDirection(base, dir);
-  }
-  if (CONTINENT_CENTERS[name]) return CONTINENT_CENTERS[name].center;
-  if (regionMarkers[name]) return regionMarkers[name];
-  if (regionCircles[name]) return regionCircles[name].center;
-  const mks = Object.keys(regionMarkers);
-  for (const k of mks) if (k.includes(name) || name.includes(k)) return regionMarkers[k];
-  const cks = Object.keys(regionCircles);
-  for (const k of cks) if (k.includes(name) || name.includes(k)) return regionCircles[k].center;
-  return null;
-}
-
-function isAdjacentSet(points){
-  if (points.length <= 1) return true;
-  const THRESH = 800000;
-  const n = points.length;
-  const adj = Array.from({length:n}, () => Array(n).fill(false));
-  for (let i=0;i<n;i++){
-    for (let j=i+1;j<n;j++){
-      const d = haversine(points[i], points[j]);
-      if (d <= THRESH) adj[i][j] = adj[j][i] = true;
-    }
-  }
-  const visited = new Array(n).fill(false);
-  const stack = [0]; visited[0] = true;
-  while (stack.length){
-    const i = stack.pop();
-    for (let j=0;j<n;j++){
-      if (!visited[j] && adj[i][j]) { visited[j]=true; stack.push(j); }
-    }
-  }
-  return visited.every(v => v);
-}
-
-function makeEllipsePolygon(a, b){
-  const mid = [(a[0]+b[0])/2, (a[1]+b[1])/2];
-  const d = haversine(a,b);
-  const major = Math.max(50000, d/2 + 30000);
-  const minor = Math.max(30000, 0.6*major);
-  function bearing(p,q){
-    const y = deg2rad(q[1]-p[1]) * Math.cos(deg2rad((p[0]+q[0])/2));
-    const x = deg2rad(q[0]-p[0]);
-    return Math.atan2(y,x);
-  }
-  const theta = bearing(a,b);
-  const latDeg = 111320;
-  const lonDeg = 111320 * Math.cos(deg2rad(mid[0]));
-  const rx = major / lonDeg;
-  const ry = minor / latDeg;
-  const pts = [];
-  const N = 72;
-  for (let i=0;i<N;i++){
-    const t = 2*Math.PI*i/N;
-    const x = rx * Math.cos(t);
-    const y = ry * Math.sin(t);
-    const xr = x*Math.cos(theta) - y*Math.sin(theta);
-    const yr = x*Math.sin(theta) + y*Math.cos(theta);
-    pts.push([mid[0] + yr, mid[1] + xr]);
-  }
-  return pts;
-}
-
-function colorForEvent(ev){
-  const str = `${ev.name||''}-${ev.year||''}`;
-  let h = 0;
-  for (let i=0;i<str.length;i++) h = (h*31 + str.charCodeAt(i)) >>> 0;
-  const hue = (h % 360);
-  return `hsl(${hue}, 80%, 55%)`;
-}
-
-function applyMultiLocationRendering(events){
-  events.forEach(ev => {
-    try {
-      const raw = (ev.region || '').trim();
-      if (!raw) return;
-      if (/絲路/.test(raw)) {
-        const hubs = [
-          [34.27, 108.95],[40.14, 94.66],[39.47, 75.99],
-          [39.65, 66.97],[35.68, 51.41],[33.31, 44.36],
-          [36.20, 37.16],[41.01, 28.97]
-        ];
-        const c = colorForEvent(ev);
-        ev.pathLayer = L.polyline(hubs, { color: c, weight: 3, opacity: 0.8, dashArray: '6,4' });
-        ev.__customRendered = true;
-        ev.__groupColor = c;
-        return;
-      }
-      const tk = tokenizeRegions(raw);
-      
-      if (tk.type === 'single') {
-        const p = resolveNameToPoint(tk.value);
-        if (p) {
-          // Decide area vs marker: if it's a continent/macro region name, draw a circle; else marker
-          if (CONTINENT_CENTERS[tk.value] || MACRO_REGION_CENTERS[tk.value]) {
-            const info = CONTINENT_CENTERS[tk.value] || MACRO_REGION_CENTERS[tk.value];
-            const c = colorForEvent(ev);
-            ev.areaLayer = L.circle(info.center, { radius: info.radius, color: c, fillColor: c, fillOpacity: 0.12, weight: 2, interactive: false });
-            ev.__customRendered = true;
-            ev.__groupColor = c;
-          } else {
-            // Single point (e.g., country center or city)
-            ev.marker = L.marker(p, {
-              icon: L.divIcon({
-                className: 'custom-marker-container',
-                html: `<div class="custom-marker">
-                  <div class="marker-pin" style="background:#10b981;border-color:white;"></div>
-                  <div class="marker-label" style="background:rgba(0,0,0,0.6);">${ev.name||''}</div>
-                </div>`,
-                iconSize: [0,0], iconAnchor: [0,0]
-              })
-            });
-            ev.__customRendered = true;
-          }
-        }
-        return;
-      }
-if (tk.type === 'range') {
-        const A = resolveNameToPoint(tk.a);
-        const B = resolveNameToPoint(tk.b);
-        if (A && B) {
-          const pts = makeEllipsePolygon(A,B);
-          const c = colorForEvent(ev);
-          ev.rangeLayer = L.polygon(pts, { color: c, weight: 2, fillColor: c, fillOpacity: 0.12, interactive: false });
-          ev.__customRendered = true;
-          ev.__groupColor = c;
-        }
-        return;
-      }
-      if (tk.type === 'multi') {
-        const points = tk.items.map(n => resolveNameToPoint(n)).filter(Boolean);
-        if (points.length < 2) return;
-        const allAdj = isAdjacentSet(points);
-        const c = colorForEvent(ev);
-        ev.__groupColor = c;
-        if (allAdj) {
-          let lat=0, lon=0;
-          for (const p of points) { lat+=p[0]; lon+=p[1]; }
-          lat/=points.length; lon/=points.length;
-          let maxR = 50000;
-          for (const p of points) { const d = haversine([lat,lon], p); if (d>maxR) maxR = d; }
-          ev.areaLayer = L.circle([lat,lon], {
-            radius: maxR + 50000, color: c, fillColor: c, fillOpacity: 0.15, weight: 2, interactive: false, className: 'multi-adjacent-circle'
-          });
-          ev.__customRendered = true;
-        } else {
-          ev.multiLayers = [];
-          const layers = [];
-          // zip names with points after filtering
-          const zipped = [];
-          tk.items.forEach((n) => { const p = resolveNameToPoint(n); if (p) zipped.push({n, p}); });
-          zipped.forEach(({n,p}) => {
-            const mk = L.marker(p, {
-              icon: L.divIcon({
-                className: 'custom-marker-container',
-                html: `<div class="custom-marker">
-                  <div class="marker-pin" style="background:${c};border-color:white;"></div>
-                  <div class="marker-label" style="background:rgba(0,0,0,0.6);">${ev.name||''}</div>
-                </div>`,
-                iconSize: [0,0], iconAnchor: [0,0]
-              })
-            });
-            const cir = L.circle(p, { radius: 80000, color: c, fillColor: c, fillOpacity: 0.12, weight: 2, interactive: false });
-            layers.push(mk, cir);
-            ev.multiLayers.push({ mk, cir });
-          });
-          if (zipped.length===0) return;
-          const highlight = (on) => {
-            layers.forEach(l => {
-              if (l.setStyle) l.setStyle({ weight: on ? 3 : 2, fillOpacity: on ? 0.22 : 0.12, opacity: on ? 0.9 : 0.7 });
-            });
-          };
-          layers.forEach(l => {
-            l.on && l.on('mouseover', () => highlight(true));
-            l.on && l.on('mouseout', () => highlight(false));
-            l.on && l.on('click', () => { showEventPanel(ev); highlight(true); });
-          });
-          ev.__customRendered = true;
-        }
-      }
-    } catch(e){ console.warn('applyMultiLocationRendering error', e); }
-  });
-}
-// === End Injected ===
-
 function updateVisibleEvents() {
-  
-  
-  // --- cleanup previously added custom layers so timeline filtering works ---
-  try {
-    events.forEach(ev => {
-      if (!ev) return;
-      if (ev.pathLayer && map.hasLayer && map.hasLayer(ev.pathLayer)) { try{ map.removeLayer(ev.pathLayer); }catch(e){} }
-      if (ev.rangeLayer && map.hasLayer && map.hasLayer(ev.rangeLayer)) { try{ map.removeLayer(ev.rangeLayer); }catch(e){} }
-      if (ev.areaLayer && map.hasLayer && map.hasLayer(ev.areaLayer)) { try{ map.removeLayer(ev.areaLayer); }catch(e){} }
-      if (ev.marker && map.hasLayer && map.hasLayer(ev.marker)) { try{ map.removeLayer(ev.marker); }catch(e){} }
-      if (ev.multiLayers && Array.isArray(ev.multiLayers)) {
-        ev.multiLayers.forEach(obj => {
-          if (!obj) return;
-          if (obj.mk && map.hasLayer && map.hasLayer(obj.mk)) { try{ map.removeLayer(obj.mk); }catch(e){} }
-          if (obj.cir && map.hasLayer && map.hasLayer(obj.cir)) { try{ map.removeLayer(obj.cir); }catch(e){} }
-        });
-      }
-      // reset
-      delete ev.pathLayer; delete ev.rangeLayer; delete ev.areaLayer; delete ev.marker; delete ev.multiLayers;
-      delete ev.__customRendered; delete ev.__groupColor;
-    });
-  } catch(e) { console.warn('custom layer cleanup error', e); }
-
-// Apply multi-location rules
-  applyMultiLocationRendering(events);
-
-
-  
-
-  // --- add custom-rendered layers (after re-compute) ---
-  try {
-    events.forEach(ev => {
-      if (!ev || !ev.__customRendered) return;
-      if (ev.pathLayer && map.addLayer) map.addLayer(ev.pathLayer);
-      if (ev.rangeLayer && map.addLayer) map.addLayer(ev.rangeLayer);
-      if (ev.areaLayer && map.addLayer) map.addLayer(ev.areaLayer);
-      if (ev.marker && map.addLayer) map.addLayer(ev.marker);
-      if (ev.multiLayers && Array.isArray(ev.multiLayers)) {
-        ev.multiLayers.forEach(obj => {
-          if (!obj) return;
-          if (obj.mk && map.addLayer) map.addLayer(obj.mk);
-          if (obj.cir && map.addLayer) map.addLayer(obj.cir);
-        });
-      }
-    });
-  } catch(e) { console.warn('custom layer add error', e); }
-
-// Add custom-rendered layers safely
-  events.forEach(ev => {
-    if (!ev.__customRendered) return;
-    if (ev.pathLayer && map.addLayer) map.addLayer(ev.pathLayer);
-    if (ev.rangeLayer && map.addLayer) map.addLayer(ev.rangeLayer);
-    if (ev.areaLayer && map.addLayer) map.addLayer(ev.areaLayer);
-    if (ev.marker && map.addLayer) map.addLayer(ev.marker);
-    if (ev.multiLayers && Array.isArray(ev.multiLayers)) {
-      ev.multiLayers.forEach(obj => {
-        if (!obj) return;
-        if (obj.mk && map.addLayer) map.addLayer(obj.mk);
-        if (obj.cir && map.addLayer) map.addLayer(obj.cir);
-      });
-    }
-  });
-
-console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
+  console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
   const locationGroups = groupEventsByLocation(
@@ -1432,10 +1119,10 @@ console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSecti
   
   // 先移除所有現有標記
   events.forEach(ev => {
-    if (ev.marker && map.hasLayer(ev.marker)) if (ev.marker) { try{ map.removeLayer(ev.marker);}catch(e){} }
-    if (ev.clusterMarker && map.hasLayer(ev.clusterMarker)) if (ev.clusterMarker) { try{ map.removeLayer(ev.clusterMarker);}catch(e){} }
-    if (ev.displayMarker && map.hasLayer(ev.displayMarker)) if (ev.displayMarker) { try{ map.removeLayer(ev.displayMarker);}catch(e){} }
-    if (ev.areaLayer && map.hasLayer(ev.areaLayer)) if (ev.areaLayer) { try{ map.removeLayer(ev.areaLayer);}catch(e){} }
+    if (ev.marker && map.hasLayer(ev.marker)) map.removeLayer(ev.marker);
+    if (ev.clusterMarker && map.hasLayer(ev.clusterMarker)) map.removeLayer(ev.clusterMarker);
+    if (ev.displayMarker && map.hasLayer(ev.displayMarker)) map.removeLayer(ev.displayMarker);
+    if (ev.areaLayer && map.hasLayer(ev.areaLayer)) map.removeLayer(ev.areaLayer);
   });
   
   // 重新創建並顯示當前時間的標記
@@ -1450,9 +1137,7 @@ console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSecti
       
       // 顯示區域圓形
       locationEvents.forEach(ev => {
-        
-      if (ev.__customRendered) return;
-if (ev.areaLayer) map.addLayer(ev.areaLayer);
+        if (ev.areaLayer) map.addLayer(ev.areaLayer);
       });
     }
     
