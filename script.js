@@ -57,6 +57,33 @@ const regionCircles = {
 };
 
 
+// === PATCH v6: Map '威尼斯、熱內亞、批薩' to centroid of (Venice, Genoa, Pisa) with radius same as '義大利、希臘' ===
+// Venice (45.4408, 12.3155), Genoa (44.4056, 8.9463), Pisa (43.7167, 10.4036) 
+// => centroid (~44.521033, 10.555133)
+if (typeof regionCircles !== 'undefined') {
+  // Ensure '義大利、希臘' radius exists; if not, derive as in previous patches
+  if (!regionCircles['義大利、希臘']) {
+    // Ensure Saudi radius exists; if not, derive from '中南美洲' (fallback 1.8e6)
+    if (!regionCircles['沙烏地阿拉伯']) {
+      if (!regionCircles['中南美洲']) {
+        regionCircles['中南美洲'] = { center: [8.5, -80.0], radius: 1800000 };
+      }
+      const _tmp_latam = regionCircles['中南美洲'].radius || 1800000;
+      regionCircles['沙烏地阿拉伯'] = { center: [23.9, 45.1], radius: Math.max(300000, Math.floor(_tmp_latam * 0.6)) };
+    }
+    const _ksa_r = regionCircles['沙烏地阿拉伯'].radius;
+    // Use the same radius policy as we applied for '義大利、希臘'
+    regionCircles['義大利、希臘'] = { center: [39.9433, 18.11195], radius: _ksa_r };
+  }
+  const _ita_grc_r = (regionCircles['義大利、希臘'] && regionCircles['義大利、希臘'].radius) 
+      ? regionCircles['義大利、希臘'].radius 
+      : (regionCircles['沙烏地阿拉伯'] ? regionCircles['沙烏地阿拉伯'].radius : 1000000);
+  regionCircles['威尼斯、熱內亞、批薩'] = { center: [44.521033, 10.555133], radius: _ita_grc_r };
+}
+// === END PATCH v6 ===
+
+
+
 // === PATCH v5: Map '義大利、希臘' to midpoint of Rome–Athens with radius same as Saudi Arabia ===
 // Rome (41.9028, 12.4964), Athens (37.9838, 23.7275) => midpoint (~39.9433, 18.11195)
 if (typeof regionCircles !== 'undefined') {
