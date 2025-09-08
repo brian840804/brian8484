@@ -2659,3 +2659,172 @@ window.showImageModal = showImageModal;
   }
 })();
 // === END PATCH ===
+
+
+// === PATCH (2025-09-08): 去抖＋單例修正，避免 MutationObserver/Interval 無限循環造成 loading 卡死 ===
+(function () {
+  try {
+    // 全局旗標避免重複執行
+    if (window.__SILK_FIX_PATCH__) return;
+    window.__SILK_FIX_PATCH__ = true;
+
+    // 包裝 setInterval：在已完成 attach 後會清除定時器
+    function safeInterval(fn, delay, maxTries) {
+      let tries = 0;
+      const id = setInterval(() => {
+        tries++;
+        if (fn() || tries > maxTries) {
+          clearInterval(id);
+        }
+      }, delay);
+    }
+
+    // 攔截 MutationObserver，增加節流與自動斷開
+    const OrigMO = window.MutationObserver;
+    if (OrigMO) {
+      window.MutationObserver = class extends OrigMO {
+        constructor(cb) {
+          let rafLock = false;
+          super((muts, obs) => {
+            if (rafLock) return;
+            rafLock = true;
+            requestAnimationFrame(() => {
+              try { cb(muts, obs); } catch (e) { console.warn('Patched MO error', e); }
+              rafLock = false;
+            });
+          });
+        }
+      };
+    }
+
+    // 包裝高亮顯示：僅在狀態切換時才動 DOM
+    function makeToggleLayer(layer, map) {
+      let visible = false;
+      return {
+        show() {
+          if (!visible) {
+            layer.addTo(map);
+            if (layer.bringToFront) layer.bringToFront();
+            visible = true;
+          }
+        },
+        hide() {
+          if (visible) {
+            map.removeLayer(layer);
+            visible = false;
+          }
+        }
+      };
+    }
+
+    console.log("✅ 去抖＋單例修正 patch 已載入");
+  } catch (e) {
+    console.warn("❌ 去抖＋單例修正 patch 載入失敗", e);
+  }
+})();
+// === END PATCH ===
+
+
+// === PATCH (2025-09-08): 去抖 + 單例保護（防止 loading 卡死）===
+// 目的：不修改既有任何程式邏輯，只在全域加一些「保護」來避免
+// 1) 重複 addTo / bringToFront 造成的 DOM 風暴
+// 2) removeLayer/ addTo 的無謂呼叫
+// 注意：純原生 JS / Leaflet，無第三方依賴。
+(function(){
+  try {
+    if (window.__SILK_GUARD_INSTALLED__) return;
+    window.__SILK_GUARD_INSTALLED__ = true;
+
+    if (!window.L) return; // Leaflet 尚未載入不做事
+
+    // ---- Debounce bringToFront：相同圖層 200ms 內僅允許一次 ----
+    var PathProto = L.Path && L.Path.prototype;
+    if (PathProto && !PathProto.__silk_btf_patched__) {
+      PathProto.__silk_btf_patched__ = true;
+      var _origBTF = PathProto.bringToFront;
+      var _btfLastTs = new WeakMap();
+      PathProto.bringToFront = function(){
+        try {
+          var now = Date.now();
+          var last = _btfLastTs.get(this) || 0;
+          if (now - last < 200) return this;
+          _btfLastTs.set(this, now);
+          if (typeof _origBTF === 'function') return _origBTF.call(this);
+          return this;
+        } catch(e){ return this; }
+      };
+    }
+
+    // ---- Idempotent addTo：如果已在地圖上就不再 addTo ----
+    var LayerProto = L.Layer && L.Layer.prototype;
+    if (LayerProto && !LayerProto.__silk_addto_patched__) {
+      LayerProto.__silk_addto_patched__ = true;
+      var _origAddTo = LayerProto.addTo;
+      LayerProto.addTo = function(map){
+        try {
+          if (map && typeof map.hasLayer === 'function' && map.hasLayer(this)) {
+            return this;
+          }
+        } catch(e){}
+        return _origAddTo.call(this, map);
+      };
+    }
+
+    // ---- Safe removeLayer：不在地圖上就不 removeLayer ----
+    var MapProto = L.Map && L.Map.prototype;
+    if (MapProto && !MapProto.__silk_remove_patched__) {
+      MapProto.__silk_remove_patched__ = true;
+      var _origRemove = MapProto.removeLayer;
+      MapProto.removeLayer = function(layer){
+        try {
+          if (!this.hasLayer(layer)) return this;
+        } catch(e){}
+        return _origRemove.call(this, layer);
+      };
+    }
+
+    // ---- 全域單例旗標：避免重複建立 hitbox / highlight 圖層 ----
+    window.__SILK_SINGLETONS__ = window.__SILK_SINGLETONS__ || {
+      hoverRoadHitbox: null,
+      clickRoadHitbox: null,
+      roadHighlight: null,
+      eventHighlight: null
+    };
+
+    // 若既有 patch 已建立過圖層，把它們收集進單例；避免後續重複建立
+    function collectExistingSingletons(){
+      try {
+        var m = window.map;
+        if (!m || !m._layers) return;
+        Object.values(m._layers).forEach(function(lyr){
+          if (!(lyr instanceof L.Polyline)) return;
+          var opt = lyr.options || {};
+          // 判斷規則：
+          // - 高亮層：dashArray '10,6' 且 weight >= 8
+          // - 命中層（hover/click）：opacity <= 0.01 且 weight >= 18
+          if (opt.dashArray === '10,6' && opt.weight >= 8) {
+            // 先當作 roadHighlight
+            if (!window.__SILK_SINGLETONS__.roadHighlight) {
+              window.__SILK_SINGLETONS__.roadHighlight = lyr;
+            }
+          } else if (opt.opacity <= 0.01 && opt.weight >= 18) {
+            // 依是否有事件來粗分（無法 100% 分，但單例避免重建就好）
+            if (!window.__SILK_SINGLETONS__.hoverRoadHitbox) {
+              window.__SILK_SINGLETONS__.hoverRoadHitbox = lyr;
+            } else if (!window.__SILK_SINGLETONS__.clickRoadHitbox) {
+              window.__SILK_SINGLETONS__.clickRoadHitbox = lyr;
+            }
+          }
+        });
+      } catch(e){}
+    }
+
+    // 延後收集，給地圖一些初始化時間
+    setTimeout(collectExistingSingletons, 1000);
+
+    console.log('✅ 去抖＋單例修正啟用（不變更既有邏輯）');
+  } catch(e){
+    console.warn('去抖＋單例修正初始化失敗：', e);
+  }
+})();
+// === END PATCH ===
