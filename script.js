@@ -692,6 +692,57 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
     });
 
     console.log(`✅ Excel 檔案載入完成!`);
+
+// === PATCH (2025-09-08 • fix): Force "西方食材進入中國" to silk road point again, without touching originals ===
+(function () {
+  try {
+    if (!Array.isArray(events)) return;
+    var NAME_RE = /西方食材.*進入中國/;
+    var silkRoadCenterOnLine = [36.2605, 59.6168]; // 馬什哈德（在線上）
+
+    var changed = 0;
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      var n = (ev && ev.name ? String(ev.name).trim() : '');
+      if (NAME_RE.test(n)) {
+        ev.coords = silkRoadCenterOnLine;
+        if (ev.region) delete ev.region; // 去掉區域圓形，僅標點
+        ev.labelOnly = false;
+        changed++;
+      }
+    }
+    console.log(changed > 0 
+      ? '✅ 修正：已將「西方食材進入中國」定位回絲路（馬什哈德）' 
+      : 'ℹ️ 修正：目前找不到「西方食材進入中國」事件');
+  } catch (e) { console.warn('修正定位失敗：', e); }
+})();
+// === END PATCH ===
+
+
+// === PATCH (2025-09-08): Reposition event "西方食材進入中國" onto Silk Road centerpoint ===
+(function () {
+  try {
+    if (!Array.isArray(events)) return;
+    var silkRoadCenterOnLine = [36.2605, 59.6168]; // 馬什哈德（script 原有絲路座標之一）
+    var changed = 0;
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      if (ev && ev.name === '西方食材進入中國') {
+        ev.coords = silkRoadCenterOnLine;
+        if (ev.region) delete ev.region;
+        ev.labelOnly = false;
+        changed++;
+      }
+    }
+    if (changed > 0) {
+      console.log('✅ 已將「西方食材進入中國」重新定位於絲路路線中心點（馬什哈德）');
+    }
+  } catch (e) {
+    console.warn('PATCH 重新定位失敗：', e);
+  }
+})();
+// === END PATCH ===
+
     console.log(`📊 處理統計:`);
     console.log(`   總共處理: ${totalProcessed} 筆資料`);
     console.log(`   成功載入: ${successfulEvents} 個事件`);
@@ -2206,3 +2257,47 @@ window.showImageModal = showImageModal;
   }
 })();
 // === END PATCH v13 ===
+
+// === PATCH (2025-09-08 • late-fix): If marker already rendered, relocate it on the map instance ===
+(function () {
+  try {
+    var TARGET_TEXT = '西方食材進入中國';
+    var targetLatLng = [36.2605, 59.6168];
+    function getMap() {
+      try { if (typeof map !== 'undefined' && map && map.addLayer) return map; } catch (e) {}
+      var container = document.querySelector('.leaflet-container');
+      return (container && container._leaflet) || null;
+    }
+    function moveMarkerIfPresent() {
+      var m = getMap(); if (!m) return false;
+      var icons = Array.from(document.querySelectorAll('.leaflet-marker-icon'));
+      var icon = icons.find(function (el) {
+        var label = el.querySelector('.marker-label');
+        return label && (label.textContent || '').trim() === TARGET_TEXT;
+      });
+      if (!icon) return false;
+      var layers = m._layers || {};
+      var moved = false;
+      for (var k in layers) {
+        var lyr = layers[k];
+        if (lyr && lyr._icon === icon && typeof lyr.setLatLng === 'function') {
+          lyr.setLatLng(targetLatLng);
+          if (lyr.update) try { lyr.update(); } catch (e) {}
+          moved = true;
+          break;
+        }
+      }
+      return moved;
+    }
+    var tries = 0;
+    var timer = setInterval(function () {
+      tries++;
+      if (moveMarkerIfPresent() || tries > 40) { // 最多嘗試約 20 秒
+        clearInterval(timer);
+      }
+    }, 500);
+  } catch (e) {
+    console.warn('late-fix 重新定位 marker 失敗：', e);
+  }
+})();
+// === END PATCH ===
