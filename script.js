@@ -261,14 +261,15 @@ function generateExpandedContent(event) {
             loading="lazy">
     </iframe>
   </div>`;
-        }" target="_blank" 
-                 style="display: inline-block; background: linear-gradient(135deg, #ff6b6b, #ee5a52); 
-                        color: white; padding: 12px 24px; border-radius: 25px; text-decoration: none; 
-                        font-weight: 600; box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
-                        transition: all 0.3s ease;">
-                🎬 觀看影片 ${index + 1}
-              </a>
-            </div>`;
+        expandedContent += `
+          <a href="${url}" target="_blank"
+             style="display: inline-block; background: linear-gradient(135deg, #ff6b6b, #ee5a52); 
+                    color: white; padding: 12px 24px; border-radius: 25px; text-decoration: none; 
+                    font-weight: 600; box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
+                    transition: all 0.3s ease;">
+            🎬 觀看影片 ${index + 1}
+          </a>
+        </div>`;
         }
       });
       expandedContent += '</div>';
