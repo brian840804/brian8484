@@ -827,7 +827,8 @@ loadingManager.nextStage();
     map.fitBounds([[-60, -180], [75, 180]]);
     console.log('✅ 地圖初始化完成');
 
-// === 陸上絲綢之路（固定顯示；橘色主線 + 白色暈邊） ===
+/* === NEW: 陸上絲綢之路（清晰亮色 + 白色暈邊） === */
+// 主要節點（長安→河西走廊→西域→中亞→伊朗→安納托利亞→君士坦丁堡）
 const silkRoadCoords = [
   [34.3416, 108.9398], // 長安（西安）
   [36.0611, 103.8343], // 蘭州
@@ -847,6 +848,7 @@ const silkRoadCoords = [
   [41.0082, 28.9784]   // 君士坦丁堡（伊斯坦堡）
 ];
 
+// 白色外圈（讓線更醒目）
 const silkRoadHalo = L.polyline(silkRoadCoords, {
   color: '#FFFFFF',
   weight: 8,
@@ -855,77 +857,41 @@ const silkRoadHalo = L.polyline(silkRoadCoords, {
   interactive: false
 });
 
+// 主色線（iOS 紅，比較亮眼）
 const silkRoadLine = L.polyline(silkRoadCoords, {
   color: '#FF9500',
   weight: 4,
   opacity: 1.0,
   lineJoin: 'round'
-});
-// === END 陸上絲綢之路 ===
+});/* === END NEW === */
 
-/* Silk Road visibility: only show at year = 0 (minimal-hook, Approach B) */
+    // 將絲路圖層掛到 window，避免 TDZ/作用域問題
+    window.silkRoadHalo = silkRoadHalo;
+    window.silkRoadLine = silkRoadLine;
 
 
-/* Label for year 0 event on Silk Road midpoint + suppress radius */
-let silkEventLabel;
-function updateSilkRoadEventLabel() {
-  try {
-    const isYearZero = (Number(currentYear) === 0);
-    const midIdx = Math.floor(silkRoadCoords.length / 2);
-    const midCoord = silkRoadCoords[midIdx];
-
-    if (isYearZero) {
-      if (!silkEventLabel) {
-        silkEventLabel = L.marker(midCoord, {
-          interactive: false,
-          icon: L.divIcon({
-            className: 'silk-event-label',
-            html: '<div style="padding:4px 8px;border-radius:10px;background:rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.15);font-weight:600;font-size:12px;letter-spacing:0.5px;">西方食材進入中國</div>',
-            iconSize: [160, 24],
-            iconAnchor: [80, 12]
-          })
-        });
-      } else {
-        silkEventLabel.setLatLng(midCoord);
-      }
-      if (!map.hasLayer(silkEventLabel)) silkEventLabel.addTo(map);
-
-      // Suppress area radius for this event at year 0
-      if (Array.isArray(events)) {
-        events.forEach(ev => {
-          const title = ev.event || ev.name || ev.title;
-          if (title === '西方食材進入中國' && Number(ev.time) === 0) {
-            if (ev.areaLayer && map.hasLayer(ev.areaLayer)) {
-              map.removeLayer(ev.areaLayer);
-            }
-          }
-        });
-      }
+    // 依年份顯示/隱藏絲路（只在 year === 0 時顯示）
+    function updateSilkRoadVisibility() {
+      try {
+        if (typeof map === 'undefined') return;
+        const show = (Number(currentYear) === 0);
+        const halo = (typeof window !== 'undefined') ? window.silkRoadHalo : undefined;
+        const line = (typeof window !== 'undefined') ? window.silkRoadLine : undefined;
+        if (!halo || !line) return; // 尚未初始化絲路圖層
+        if (show) {
+          if (!map.hasLayer(halo)) halo.addTo(map);
+          if (!map.hasLayer(line)) line.addTo(map);
+        } else {
+          if (map.hasLayer(halo)) map.removeLayer(halo);
+          if (map.hasLayer(line)) map.removeLayer(line);
+        }
+      } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
     } else {
-      if (silkEventLabel && map.hasLayer(silkEventLabel)) {
-        map.removeLayer(silkEventLabel);
-      }
+          if (typeof window.window.silkRoadHalo !== 'undefined' && map.hasLayer(window.silkRoadHalo)) map.removeLayer(window.silkRoadHalo);
+          if (typeof window.window.silkRoadLine !== 'undefined' && map.hasLayer(window.silkRoadLine)) map.removeLayer(window.silkRoadLine);
+        }
+      } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
     }
-  } catch (e) {
-    console.warn('updateSilkRoadEventLabel error', e);
-  }
-}
-function updateSilkRoadForYear() {
-  try {
-    if (typeof map === 'undefined') return;
-    const show = (Number(currentYear) === 0);
-    if (show) {
-      if (!map.hasLayer(silkRoadHalo)) silkRoadHalo.addTo(map);
-      if (!map.hasLayer(silkRoadLine)) silkRoadLine.addTo(map);
-    } else {
-      if (map.hasLayer(silkRoadHalo)) map.removeLayer(silkRoadHalo);
-      if (map.hasLayer(silkRoadLine)) map.removeLayer(silkRoadLine);
-    }
-  } catch (e) { console.warn('updateSilkRoadForYear error', e); }
-}
-
-
-
 
 
   } catch (err) {
@@ -1325,7 +1291,9 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
-  console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
+  console.log(`🔄 更新可見事件: ${currentYear  // 更新絲路顯示
+  updateSilkRoadVisibility();
+}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
   const locationGroups = groupEventsByLocation(
@@ -1354,9 +1322,7 @@ function updateVisibleEvents() {
       locationEvents.forEach(ev => {
         if (ev.areaLayer) map.addLayer(ev.areaLayer);
       });
-      
-  // 結尾同步絲路顯示（只在 year=0 顯示）
-}
+    }
     
     if (coords) {
       const marker = createClusterMarker(locationEvents, coords);
@@ -1369,6 +1335,7 @@ function updateVisibleEvents() {
   panel.classList.remove('visible');
 
   // 結尾同步絲路顯示（只在 year=0 顯示）
+  updateSilkRoadVisibility();
 }
 
   // 章節選擇器事件
@@ -1377,7 +1344,8 @@ function updateVisibleEvents() {
       selectedSections = Array.from(document.querySelectorAll('.section-checkbox:checked')).map(b => b.value);
       console.log('📋 更新選中章節:', selectedSections);
       updateVisibleEvents();
-});
+  updateSilkRoadVisibility();
+    });
   });
 
   // 地區快速縮放
@@ -1585,9 +1553,9 @@ document.querySelector('.tick-menu-container').appendChild(eraSpansContainer);
       
       // 更新可見事件
       updateVisibleEvents();
-            updateSilkRoadForYear();
-      updateSilkRoadEventLabel();
-updateSilkRoadForYear();
+      
+              repositionWesternFoodEvent();
+updateSilkRoadVisibility();
 // 關閉面板
       panel.classList.remove('visible');
     });
@@ -1609,13 +1577,14 @@ tickItem.addEventListener('mouseleave', function() {
   console.log('✅ 時間軸設置完成');
 
   // 初始載入
+  console.log('🎬 執行初始更新...');
   updateVisibleEvents();
-  updateSilkRoadForYear();
-  loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
-  loadingManager.nextStage();
-  loadingManager.hide();
+  
+    repositionWesternFoodEvent();
+loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
+loadingManager.nextStage();
+loadingManager.hide();
   console.log('🎉 歷史飲食地圖初始化完成！');
-
 
   // 添加鍵盤快捷鍵
   document.addEventListener('keydown', function(e) {
