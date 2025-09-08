@@ -261,10 +261,7 @@ function generateExpandedContent(event) {
             loading="lazy">
     </iframe>
   </div>`;
-        } else {
-          expandedContent += `
-            <div style="margin: 16px 0; text-align: center;">
-              <a href="${videoUrl}" target="_blank" 
+        }" target="_blank" 
                  style="display: inline-block; background: linear-gradient(135deg, #ff6b6b, #ee5a52); 
                         color: white; padding: 12px 24px; border-radius: 25px; text-decoration: none; 
                         font-weight: 600; box-shadow: 0 4px 16px rgba(255, 107, 107, 0.3);
@@ -371,8 +368,6 @@ const embedCode = '<div style="margin: 16px 0; padding: 12px; background: rgba(2
   // 檢查是否有替換發生
   if (content !== originalContent) {
     console.log('✅ 內容已處理，包含影片');
-  } else {
-    console.log('ℹ️ 沒有找到 YouTube 連結');
   }
   
 // 處理圖文並排 - 圖片在左，對應段落文字在右
@@ -638,60 +633,55 @@ let __skipDefaultPlacement = false;
 
 
           if (!__skipDefaultPlacement) {
-          // 優先使用精確座標
-          if (regionMarkers[row['地區']]) {
-            event.coords = regionMarkers[row['地區']];
-            console.log(`   ✅ 使用精確座標: ${row['地區']} -> ${event.coords}`);
-          } 
-          // 其次使用區域圓形
-          else if (regionCircles[row['地區']]) {
-            event.region = row['地區'];
-            console.log(`   🎯 使用區域圓形: ${row['地區']}`);
-          } 
+            // 優先使用精確座標
+            if (regionMarkers[row['地區']]) {
+              event.coords = regionMarkers[row['地區']];
+              console.log(`   ✅ 使用精確座標: ${row['地區']} -> ${event.coords}`);
+            } else if (regionCircles[row['地區']]) {
+              // 其次使用區域圓形
+              event.region = row['地區'];
+              console.log(`   🎯 使用區域圓形: ${row['地區']}`);
+            } else {
+              // 找不到對應位置 → 嘗試模糊匹配
+              console.warn(`   ❌ 找不到地區位置: "${row['地區']}"`);
+              const fuzzyMatch = findFuzzyMatch(row['地區'], {
+                ...regionMarkers,
+                ...Object.fromEntries(Object.entries(regionCircles).map(([k, v]) => [k, v.center]))
+              });
+              if (fuzzyMatch) {
+                console.log(`   🔍 找到相似地區: "${fuzzyMatch}"`);
+                if (regionMarkers[fuzzyMatch]) {
+                  event.coords = regionMarkers[fuzzyMatch];
+                } else if (regionCircles[fuzzyMatch]) {
+                  event.region = fuzzyMatch;
+                }
+              } else {
+                console.log(`   🏷️  使用預設位置: 中東地區`);
+              }
+            }
+          }
 
-// 找不到對應位置
-else {
-  console.warn(`   ❌ 找不到地區位置: "${row['地區']}"`);
-  
-  // 嘗試模糊匹配
-  const fuzzyMatch = findFuzzyMatch(row['地區'], {...regionMarkers, ...Object.fromEntries(Object.entries(regionCircles).map(([k, v]) => [k, v.center]))});
-  if (fuzzyMatch) {
-    console.log(`   🔍 找到相似地區: "${fuzzyMatch}"`);
-    if (regionMarkers[fuzzyMatch]) {
-      event.coords = regionMarkers[fuzzyMatch];
-    } else if (regionCircles[fuzzyMatch]) {
-      event.region = fuzzyMatch;
-    }
-  } else {
-    // 為未匹配地區添加預設位置
-    event.region = row['地區'];
-    if (!regionCircles[row['地區']]) {
-      regionCircles[row['地區']] = { center: [33.8, 35.5], radius: 320000 }; // 使用中東地區作為預設
-    }
-    console.log(`   🏷️  使用預設位置: 中東地區`);
-  }
-}
-
-// 除錯：檢查多媒體資料
-if (event.videos.length > 0 || event.images.length > 0) {
-  console.log(`🎬 事件 "${event.name}" 多媒體資料:`, {
-    影片: event.videos,
-    圖片: event.images,
-    原始影片欄位: row['影片連結'],
-    原始圖片欄位: row['圖片資訊']
-  });
-}
+          // 除錯：檢查多媒體資料
+          if (event.videos.length > 0 || event.images.length > 0) {
+            console.log(`🎬 事件 "${event.name}" 多媒體資料:`, {
+              影片: event.videos,
+              圖片: event.images,
+              原始影片欄位: row['影片資訊'],
+              原始圖片欄位: row['圖片資訊']
+            });
+          }
 
           } // end dual-skip guard
 
-events.push(event);
-successfulEvents++;
-console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
+          events.push(event);
+          successfulEvents++;
+          console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
         });
       }
     });
 
     console.log(`✅ Excel 檔案載入完成!`);
+    console.log(`📊 處理統計:`);
     console.log(`📊 處理統計:`);
     console.log(`   總共處理: ${totalProcessed} 筆資料`);
     console.log(`   成功載入: ${successfulEvents} 個事件`);
@@ -780,8 +770,6 @@ const COUNTRIES_STYLE = {
       for (const item of array) {
         if (Array.isArray(item[0])) {
           if (anyLatAbove(item, threshold)) return true;
-        } else {
-          if (item[1] > threshold) return true;
         }
       }
       return false;
@@ -826,71 +814,6 @@ loadingManager.nextStage();
 
     map.fitBounds([[-60, -180], [75, 180]]);
     console.log('✅ 地圖初始化完成');
-
-/* === NEW: 陸上絲綢之路（清晰亮色 + 白色暈邊） === */
-// 主要節點（長安→河西走廊→西域→中亞→伊朗→安納托利亞→君士坦丁堡）
-const silkRoadCoords = [
-  [34.3416, 108.9398], // 長安（西安）
-  [36.0611, 103.8343], // 蘭州
-  [38.9250, 100.4490], // 張掖
-  [40.1420, 94.6610],  // 敦煌
-  [42.9500, 89.1900],  // 吐魯番
-  [39.4700, 75.9900],  // 喀什
-  [39.6542, 66.9597],  // 撒馬爾罕
-  [39.7670, 64.4230],  // 布哈拉
-  [37.6610, 62.1800],  // 默爾夫（梅爾夫）
-  [36.2605, 59.6168],  // 馬什哈德
-  [35.6892, 51.3890],  // 德黑蘭
-  [36.2021, 37.1343],  // 阿勒坡
-  [36.1990, 36.1600],  // 安條克（安塔基亞）
-  [37.8713, 32.4846],  // 科尼亞
-  [39.9334, 32.8597],  // 安卡拉
-  [41.0082, 28.9784]   // 君士坦丁堡（伊斯坦堡）
-];
-
-// 白色外圈（讓線更醒目）
-const silkRoadHalo = L.polyline(silkRoadCoords, {
-  color: '#FFFFFF',
-  weight: 8,
-  opacity: 0.9,
-  lineJoin: 'round',
-  interactive: false
-});
-
-// 主色線（iOS 紅，比較亮眼）
-const silkRoadLine = L.polyline(silkRoadCoords, {
-  color: '#FF9500',
-  weight: 4,
-  opacity: 1.0,
-  lineJoin: 'round'
-});/* === END NEW === */
-
-    // 將絲路圖層掛到 window，避免 TDZ/作用域問題
-    window.silkRoadHalo = silkRoadHalo;
-    window.silkRoadLine = silkRoadLine;
-
-
-    // 依年份顯示/隱藏絲路（只在 year === 0 時顯示）
-    function updateSilkRoadVisibility() {
-      try {
-        if (typeof map === 'undefined') return;
-        const show = (Number(currentYear) === 0);
-        const halo = (typeof window !== 'undefined') ? window.silkRoadHalo : undefined;
-        const line = (typeof window !== 'undefined') ? window.silkRoadLine : undefined;
-        if (!halo || !line) return; // 尚未初始化絲路圖層
-        if (show) {
-          if (!map.hasLayer(halo)) halo.addTo(map);
-          if (!map.hasLayer(line)) line.addTo(map);
-        } else {
-          if (map.hasLayer(halo)) map.removeLayer(halo);
-          if (map.hasLayer(line)) map.removeLayer(line);
-        }
-      } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
-    } 
-      } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
-    }
-
-
   } catch (err) {
     console.error('❌ 地圖載入失敗:', err);
   }
@@ -963,19 +886,6 @@ document.addEventListener('click', function(e) {
         panelContent.innerHTML = currentEvent.panel.content + 
           '<button class="expand-btn" id="expand-panel-btn">📖 查看詳細內容</button>';
       }
-    } else {
-      // 展開為大面板 - 只顯示詳細內容，隱藏摘要
-      panel.classList.add('expanded');
-      btn.textContent = '📖 收合面板';
-      btn.classList.add('collapse');
-      
-      // 只顯示詳細內容，不包含基本摘要和重複標題
-      const currentEvent = window.currentDisplayedEvent;
-      if (currentEvent) {
-        const expandedContent = generateExpandedContent(currentEvent);
-        panelContent.innerHTML = expandedContent + 
-          '<button class="expand-btn collapse" id="expand-panel-btn">📖 收合面板</button>';
-      }
     }
   }
 });
@@ -1024,8 +934,6 @@ function groupEventsByLocation(events) {
     } else if (event.region && regionCircles[event.region]) {
       // 區域：直接使用區域名稱
       locationKey = `region_${event.region}`;
-    } else {
-      return; // 跳過無效事件
     }
     
     if (!groups.has(locationKey)) {
@@ -1064,11 +972,7 @@ function createClusterMarker(locationEvents, coords) {
     });
     
     return ev.marker;
-  } else {
-    // 多個事件，創建聚合標記
-    const clusterMarker = L.marker(coords, {
-      icon: L.divIcon({
-        html: `<div class="cluster-marker ${eventCount > 5 ? 'large' : ''}">${eventCount}</div>`,
+  }">${eventCount}</div>`,
         className: 'cluster-marker-container',
         iconSize: [40, 40],
         iconAnchor: [20, 20]
@@ -1147,12 +1051,6 @@ console.log('🔍 事件詳細資料:', {
     expandButton.textContent = '📖 查看詳細內容';
     panelContent.appendChild(expandButton);
     console.log('✅ 詳細內容按鈕已添加');
-  } else {
-    const noContentDiv = document.createElement('div');
-    noContentDiv.style.cssText = 'color: var(--text-secondary); font-size: 0.8rem; margin-top: 8px;';
-    noContentDiv.textContent = '※ 此事件無詳細資料';
-    panelContent.appendChild(noContentDiv);
-    console.log('ℹ️ 顯示無詳細資料提示');
   }
   
   panel.classList.add('visible');
@@ -1280,17 +1178,13 @@ function returnToPreviousView() {
     if (previousViewState.activeRegion) {
       setActiveRegion(previousViewState.activeRegion);
     }
-  } else {
-    // 如果沒有記錄，回到世界地圖
-    map.setView([20, 0], 3, { animate: true });
+  });
   }
 }
 
   // 更新可見事件
 function updateVisibleEvents() {
-  console.log(`🔄 更新可見事件: ${currentYear  // 更新絲路顯示
-  updateSilkRoadVisibility();
-}年, 章節: ${selectedSections.join(', ')}`);
+  console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
   const locationGroups = groupEventsByLocation(
@@ -1330,9 +1224,6 @@ function updateVisibleEvents() {
   
   console.log(`👁️  顯示 ${visibleCount} 個事件 (${locationGroups.size} 個位置)`);
   panel.classList.remove('visible');
-
-  // 結尾同步絲路顯示（只在 year=0 顯示）
-  updateSilkRoadVisibility();
 }
 
   // 章節選擇器事件
@@ -1341,7 +1232,6 @@ function updateVisibleEvents() {
       selectedSections = Array.from(document.querySelectorAll('.section-checkbox:checked')).map(b => b.value);
       console.log('📋 更新選中章節:', selectedSections);
       updateVisibleEvents();
-  updateSilkRoadVisibility();
     });
   });
 
@@ -1363,10 +1253,6 @@ panelToggle.addEventListener('click', () => {
     toggleIcon.textContent = '❯';
     panelToggle.title = '展開面板';
     console.log('📦 控制面板已收合');
-  } else {
-    toggleIcon.textContent = '❮';
-    panelToggle.title = '收合面板';
-    console.log('📖 控制面板已展開');
   }
 });
 
@@ -1540,8 +1426,6 @@ document.querySelector('.tick-menu-container').appendChild(eraSpansContainer);
       // 更新標籤
       if (yr < 0) {
         timeCurrentLabel.innerHTML = '西元前<br>' + Math.abs(yr) + '年';
-      } else {
-        timeCurrentLabel.innerHTML = '西元<br>' + Math.abs(yr) + '年';
       }
       
       // 更新當前年份和時代
@@ -1551,9 +1435,7 @@ document.querySelector('.tick-menu-container').appendChild(eraSpansContainer);
       // 更新可見事件
       updateVisibleEvents();
       
-              repositionWesternFoodEvent();
-updateSilkRoadVisibility();
-// 關閉面板
+      // 關閉面板
       panel.classList.remove('visible');
     });
 
@@ -1577,8 +1459,7 @@ tickItem.addEventListener('mouseleave', function() {
   console.log('🎬 執行初始更新...');
   updateVisibleEvents();
   
-    repositionWesternFoodEvent();
-loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
+  loadingManager.updateProgress(100, '載入完成！', '歷史地圖已就緒');
 loadingManager.nextStage();
 loadingManager.hide();
   console.log('🎉 歷史飲食地圖初始化完成！');
