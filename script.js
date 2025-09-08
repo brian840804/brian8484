@@ -692,38 +692,6 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
     });
 
     console.log(`✅ Excel 檔案載入完成!`);
-
-// === PATCH (2025-09-08): Reposition event "西方食材進入中國" onto Silk Road centerpoint ===
-// 說明：不修改原本流程，只在 Excel 載入完成後，若事件「西方食材進入中國」是使用預設位置，
-// 則把它的座標改為「絲路路線的中心點（取線上的中段節點）」並以標點呈現（不使用 radius）。
-(function () {
-  try {
-    if (!Array.isArray(events)) return;
-    // 選用絲路折線上的一個中段節點（馬什哈德 Mashhad），確保「點在絲路線上」
-    var silkRoadCenterOnLine = [36.2605, 59.6168]; // 馬什哈德（script 原有絲路座標之一）
-
-    var changed = 0;
-    for (var i = 0; i < events.length; i++) {
-      var ev = events[i];
-      if (ev && ev.name === '西方食材進入中國') {
-        // 僅做標點，不使用區域圓形
-        ev.coords = silkRoadCenterOnLine;
-        if (ev.region) delete ev.region;
-        ev.labelOnly = false;
-        changed++;
-      }
-    }
-    if (changed > 0) {
-      console.log('✅ 已將「西方食材進入中國」重新定位於絲路路線中心點（馬什哈德）');
-    } else {
-      console.log('ℹ️ 未找到「西方食材進入中國」事件，無需調整');
-    }
-  } catch (e) {
-    console.warn('PATCH 重新定位失敗：', e);
-  }
-})();
-// === END PATCH ===
-
     console.log(`📊 處理統計:`);
     console.log(`   總共處理: ${totalProcessed} 筆資料`);
     console.log(`   成功載入: ${successfulEvents} 個事件`);
@@ -859,7 +827,188 @@ loadingManager.nextStage();
     map.fitBounds([[-60, -180], [75, 180]]);
     console.log('✅ 地圖初始化完成');
 
+// === PATCH (2025-09-08): Highlight Silk Road polyline when hovering "西方食材進入中國" ===
+(function(){
+  try {
+    if (typeof map === 'undefined') return;
+
+    // 找到已建立的絲路 polyline，這裡假設之前已有 silkRoadLayer 加入 map
+    var silkRoadLayer;
+    map.eachLayer(function(layer){
+      if (layer instanceof L.Polyline && layer.options && layer.options.className === 'silk-road-polyline') {
+        silkRoadLayer = layer;
+      }
+    });
+
+    // 如果沒有 className，則新建一個標記用的 polyline 參考
+    if (!silkRoadLayer && typeof silkRoadCoords !== 'undefined') {
+      silkRoadLayer = L.polyline(silkRoadCoords, {
+        color: '#ff7f00',
+        weight: 4,
+        opacity: 0.9,
+        className: 'silk-road-polyline'
+      }).addTo(map);
+    }
+
+    if (!silkRoadLayer) {
+      console.warn('未找到絲路 polyline，無法綁定高亮效果');
+      return;
+    }
+
+    // 定義高亮與恢復樣式
+    var defaultStyle = { color: '#ff7f00', weight: 4, opacity: 0.9 };
+    var highlightStyle = { color: '#FFD700', weight: 6, opacity: 1.0 };
+
+    function applyStyle(layer, style) {
+      layer.setStyle(style);
+    }
+
+    // 掛勾 marker 與 label
+    if (Array.isArray(events)) {
+      events.forEach(function(ev){
+        if (ev && ev.name === '西方食材進入中國' && ev._leaflet_id) {
+          var layer = map._layers[ev._leaflet_id];
+          if (layer) {
+            layer.on('mouseover', function(){ applyStyle(silkRoadLayer, highlightStyle); });
+            layer.on('mouseout', function(){ applyStyle(silkRoadLayer, defaultStyle); });
+          }
+        }
+      });
+    }
+
+    console.log('✅ 已為「西方食材進入中國」標點綁定滑鼠高亮絲路效果');
+  } catch(e) {
+    console.warn('PATCH 高亮絲路失敗：', e);
+  }
+})();
+// === END PATCH ===
+
+
 // === 陸上絲綢之路（固定顯示；橘色主線 + 白色暈邊） ===
+
+// === PATCH (2025-09-08): Hovering "西方食材進入中國" highlights the entire Silk Road ===
+(function () {
+  try {
+    const TARGET_EVENT_NAME = '西方食材進入中國';
+    // 需要使用到已定義於原檔的 silkRoadCoords 與 Leaflet 地圖實例。
+    // 嘗試取得 Leaflet 地圖實例：優先使用全域 map、否則從 #map 尋找綁定的 Leaflet 物件。
+    function getLeafletMapInstance() {
+      try {
+        if (typeof map !== 'undefined' && map && typeof map.addLayer === 'function') return map;
+      } catch (e) {}
+      // 從 Leaflet 內部註冊找（穩妥度一般，但足夠用於不修改原碼的 patch）
+      const panes = document.querySelectorAll('.leaflet-pane');
+      if (!panes || panes.length === 0) return null;
+      // 透過任意 pane 的 _leaflet_id 回推 map：leaflet 在 DOM 上沒有直接存 map，
+      // 這裡退而求其次：從世界座標 pane 往上找 .leaflet-container 綁定的物件。
+      const container = document.querySelector('.leaflet-container');
+      if (container && container._leaflet) return container._leaflet; // 某些版本會掛這個
+      // 最後使用全域 L 來嘗試抓第一個地圖實例（若外部套件有暴露）
+      try {
+        if (window.L && L && L.layerGroup) {
+          // 建一層暫時圖層測試 add/remove 來判斷 map 可用性
+          // 但此法仍需要 map，所以直接回 null
+        }
+      } catch (e) {}
+      return null;
+    }
+
+    // 建立高亮圖層（預設不顯示），使用與原檔相同的 silkRoadCoords
+    let silkHighlightLayer = null;
+    function ensureHighlightLayer() {
+      const m = getLeafletMapInstance();
+      if (!m) return null;
+      if (!Array.isArray(silkRoadCoords)) return null;
+      if (silkHighlightLayer) return silkHighlightLayer;
+      // 建立一條比主線更粗、較亮的虛線做高亮
+      silkHighlightLayer = L.polyline(silkRoadCoords, {
+        color: '#FFD166',
+        weight: 8,
+        opacity: 0.85,
+        dashArray: '10,6',
+        interactive: false // 只當裝飾，不攔截互動
+      });
+      return silkHighlightLayer;
+    }
+
+    function showSilkHighlight() {
+      const m = getLeafletMapInstance();
+      const layer = ensureHighlightLayer();
+      if (m && layer && !m.hasLayer(layer)) {
+        layer.addTo(m);
+        if (layer.bringToFront) layer.bringToFront();
+      }
+    }
+
+    function hideSilkHighlight() {
+      const m = getLeafletMapInstance();
+      if (m && silkHighlightLayer && m.hasLayer(silkHighlightLayer)) {
+        m.removeLayer(silkHighlightLayer);
+      }
+    }
+
+    // 綁定 hover：找出顯示該事件名稱的 marker/label DOM
+    function tryBindHoverHandlers() {
+      const NAME = TARGET_EVENT_NAME;
+      let bound = false;
+      // label 文字
+      const labels = Array.from(document.querySelectorAll('.marker-label')).filter(el => (el.textContent || '').trim() === NAME);
+      // 對應的 marker-pin 與容器
+      const pins = [];
+      labels.forEach(label => {
+        const container = label.closest('.custom-marker') || label.closest('.leaflet-marker-icon') || label.parentElement;
+        if (container) {
+          const pin = container.querySelector('.marker-pin');
+          if (pin) pins.push(pin);
+          // 綁在容器本身，確保滑過 label 或 pin 都能觸發
+          [container, label].forEach(el => {
+            if (!el) return;
+            if (el.__silkHoverBound__) return;
+            el.addEventListener('mouseenter', showSilkHighlight, { passive: true });
+            el.addEventListener('mouseleave', hideSilkHighlight, { passive: true });
+            el.__silkHoverBound__ = true;
+            bound = true;
+          });
+          if (pin && !pin.__silkHoverBound__) {
+            pin.addEventListener('mouseenter', showSilkHighlight, { passive: true });
+            pin.addEventListener('mouseleave', hideSilkHighlight, { passive: true });
+            pin.__silkHoverBound__ = true;
+            bound = true;
+          }
+        }
+      });
+      return bound;
+    }
+
+    // 因為原始碼可能於稍後才把 marker 加進 DOM，這裡用輪詢嘗試綁定，成功一次就停止。
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts++;
+      const ok = tryBindHoverHandlers();
+      if (ok || attempts > 40) { // 最多嘗試約 20 秒（500ms * 40）
+        clearInterval(timer);
+        if (ok) {
+          console.log('✅ 已綁定「西方食材進入中國」滑過高亮絲路效果');
+        } else {
+          console.log('ℹ️ 未找到事件標籤，未綁定絲路高亮（可能該事件未顯示於當前時間或篩選中）');
+        }
+      }
+    }, 500);
+
+    // 安全網：若之後 DOM 動態變化（篩選切換），再嘗試一次綁定
+    const mapRoot = document.querySelector('#map');
+    if (mapRoot && window.MutationObserver) {
+      const mo = new MutationObserver((muts) => {
+        tryBindHoverHandlers();
+      });
+      mo.observe(mapRoot, { childList: true, subtree: true });
+    }
+  } catch (e) {
+    console.warn('PATCH: 絲路高亮滑過綁定失敗', e);
+  }
+})();
+// === END PATCH ===
+
 const silkRoadCoords = [
   [34.3416, 108.9398], // 長安（西安）
   [36.0611, 103.8343], // 蘭州
