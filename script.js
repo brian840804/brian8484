@@ -886,10 +886,7 @@ const silkRoadLine = L.polyline(silkRoadCoords, {
           if (map.hasLayer(line)) map.removeLayer(line);
         }
       } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
-    } else {
-          if (typeof window.window.silkRoadHalo !== 'undefined' && map.hasLayer(window.silkRoadHalo)) map.removeLayer(window.silkRoadHalo);
-          if (typeof window.window.silkRoadLine !== 'undefined' && map.hasLayer(window.silkRoadLine)) map.removeLayer(window.silkRoadLine);
-        }
+    } 
       } catch (e) { console.warn('updateSilkRoadVisibility error', e); }
     }
 
