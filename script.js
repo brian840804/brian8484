@@ -2308,56 +2308,74 @@ window.showImageModal = showImageModal;
   try {
     if (typeof map === 'undefined') return;
 
-    // 尋找已存在的絲路主線（以 className 判定）
-    var silkRoadLayer = null;
-    map.eachLayer(function(layer) {
-      if (layer instanceof L.Polyline && layer.options && layer.options.className === 'silk-road-polyline') {
-        silkRoadLayer = layer;
-      }
-    });
-
-    // 找不到就以既有座標建立一條（保持既有樣式）；不改變其他邏輯
-    if (!silkRoadLayer && typeof silkRoadCoords !== 'undefined') {
-      silkRoadLayer = L.polyline(silkRoadCoords, { color: '#ff7f00', weight: 4, opacity: 0.9, className: 'silk-road-polyline' }).addTo(map);
+    // 只在地圖上存在絲路線時才綁定點擊（不重建、不新增圖層）
+    function getSilkRoadLayer() {
+      var found = null;
+      map.eachLayer(function(layer) {
+        if (layer instanceof L.Polyline && layer.options && layer.options.className === 'silk-road-polyline') {
+          found = layer;
+        }
+      });
+      return found;
     }
-    if (!silkRoadLayer) return;
 
-    // 防重複綁定
-    if (silkRoadLayer.__silkClickBound__) return;
-
-    // 點擊絲路 → 開啟「西方食材進入中國」的教學面板（與點事件標記一致行為）
-    silkRoadLayer.on('click', function(e) {
-      try {
-        var target = null;
-        if (typeof events !== 'undefined' && Array.isArray(events)) {
-          target = events.find(function(ev){ return ev && ev.name === '西方食材進入中國'; }) ||
-                   events.find(function(ev){ return ev && /西方食材.*進入中國/.test(String(ev.name)); });
-        }
-        if (target && typeof showEventPanel === 'function') {
-          showEventPanel(target);
-        } else {
-          console.warn('找不到「西方食材進入中國」事件或面板函式缺失，嘗試觸發對應標記的 DOM 點擊');
-          try {
-            var labels = Array.from(document.querySelectorAll('.marker-label'));
-            var targetLabel = labels.find(function(el){ return (el.textContent || '').trim() === '西方食材進入中國'; });
-            if (targetLabel) {
-              var evt = new MouseEvent('click', { bubbles: true, cancelable: true });
-              targetLabel.dispatchEvent(evt);
+    function bindOnce(layer) {
+      if (!layer || layer.__silkClickBound__) return false;
+      layer.on('click', function(e) {
+        try {
+          // 與點擊標記/標籤一致：找到該事件的 Leaflet Marker，直接 fire('click')
+          var targetMarker = null;
+          var layers = (map && map._layers) ? map._layers : {};
+          for (var id in layers) {
+            if (!Object.prototype.hasOwnProperty.call(layers, id)) continue;
+            var lyr = layers[id];
+            if (lyr && lyr instanceof L.Marker && lyr._icon) {
+              var labelEl = lyr._icon.querySelector && lyr._icon.querySelector('.marker-label');
+              if (labelEl && (labelEl.textContent || '').trim() === '西方食材進入中國') {
+                targetMarker = lyr;
+                break;
+              }
             }
-          } catch (_e) {}
+          }
+          if (targetMarker && typeof targetMarker.fire === 'function') {
+            targetMarker.fire('click', { latlng: targetMarker.getLatLng ? targetMarker.getLatLng() : null });
+          } else {
+            console.warn('未找到「西方食材進入中國」的可見標記；可能該事件目前未顯示於此年份/篩選。');
+          }
+        } finally {
+          if (e && L && L.DomEvent && typeof L.DomEvent.stopPropagation === 'function') {
+            L.DomEvent.stopPropagation(e);
+          }
         }
-      } finally {
-        if (e && L && L.DomEvent && typeof L.DomEvent.stopPropagation === 'function') {
-          L.DomEvent.stopPropagation(e);
-        }
-      }
-    });
+      });
+      layer.__silkClickBound__ = true;
+      console.log('✅ 已綁定：點擊絲路 → 開啟「西方食材進入中國」');
+      return true;
+    }
 
-    silkRoadLayer.__silkClickBound__ = true;
-    console.log('✅ 已綁定：點擊絲路 → 開啟「西方食材進入中國」');
+    // 當前若已有絲路層，立刻綁；否則等待它被加入（年份切換時才顯示）
+    var layer = getSilkRoadLayer();
+    if (!bindOnce(layer)) {
+      // 輕量輪詢：最多 20 秒，每 500ms 檢查一次（避免改動現有初始化時序）
+      var tries = 0;
+      var t = setInterval(function() {
+        tries++;
+        var l = getSilkRoadLayer();
+        if (bindOnce(l) || tries > 40) clearInterval(t);
+      }, 500);
+
+      // 若之後圖層被加入（例如年份切換時重畫絲路），即時綁定一次
+      if (map && typeof map.on === 'function') {
+        map.on('layeradd', function(ev) {
+          var l2 = ev && ev.layer;
+          if (l2 && l2 instanceof L.Polyline && l2.options && l2.options.className === 'silk-road-polyline') {
+            bindOnce(l2);
+          }
+        });
+      }
+    }
   } catch (e) {
     console.warn('綁定絲路點擊失敗：', e);
   }
 })();
 // === END PATCH ===
-
