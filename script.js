@@ -54,6 +54,8 @@ const regionCircles = {
   '澳洲': { center: [-25, 135], radius: 1000000 },
   '紐西蘭': { center: [-40, 175], radius: 300000 },
   '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 }
+,
+  '中南美洲': { center: [4.57, -74.30], radius: 1300000 }
 };
 
 
