@@ -937,6 +937,169 @@ loadingManager.nextStage();
 
 // === 陸上絲綢之路（固定顯示；橘色主線 + 白色暈邊） ===
 
+// === PATCH (2025-09-08): Hovering anywhere on Silk Road highlights the entire route ===
+(function () {
+  try {
+    // 取得地圖
+    function getMap() {
+      try { if (typeof map !== 'undefined' && map && map.addLayer) return map; } catch (e) {}
+      const container = document.querySelector('.leaflet-container');
+      return (container && container._leaflet) || null;
+    }
+
+    // 建立/取得高亮圖層（與先前事件滑過使用相同視覺語言，但不共享變數以免相互覆寫）
+    let roadHL = null;
+    function ensureHighlightLayer() {
+      const m = getMap(); if (!m) return null;
+      if (!Array.isArray(silkRoadCoords)) return null;
+      if (roadHL) return roadHL;
+      roadHL = L.polyline(silkRoadCoords, {
+        color: '#FFD166',
+        weight: 8,
+        opacity: 0.85,
+        dashArray: '10,6',
+        interactive: false
+      });
+      return roadHL;
+    }
+    function showHL() {
+      const m = getMap(); const layer = ensureHighlightLayer();
+      if (m && layer && !m.hasLayer(layer)) {
+        layer.addTo(m);
+        if (layer.bringToFront) layer.bringToFront();
+      }
+    }
+    function hideHL() {
+      const m = getMap();
+      if (m && roadHL && m.hasLayer(roadHL)) m.removeLayer(roadHL);
+    }
+
+    // 建立一條透明、較粗的「互動多折線」與主線重疊，用來接收 mouseenter/mouseleave
+    let hitbox = null;
+    function ensureHitbox() {
+      const m = getMap(); if (!m) return null;
+      if (!Array.isArray(silkRoadCoords)) return null;
+      if (hitbox) return hitbox;
+      hitbox = L.polyline(silkRoadCoords, {
+        color: '#000000',
+        opacity: 0.001,   // 幾乎全透明，避免視覺干擾
+        weight: 18,       // 比主線粗，容易觸發
+        interactive: true // 接收滑鼠事件
+      });
+      hitbox.on('mouseover', showHL);
+      hitbox.on('mouseout', hideHL);
+      return hitbox;
+    }
+
+    function tryAttach() {
+      const m = getMap(); if (!m) return false;
+      const hb = ensureHitbox(); if (!hb) return false;
+      if (!m.hasLayer(hb)) hb.addTo(m);
+      // 確保命中層不遮蔽其他互動：把 hitbox 放在主線之上，但高亮層再置頂
+      if (hb.bringToFront) hb.bringToFront();
+      return true;
+    }
+
+    // 嘗試多次，等待地圖與主線完成
+    let tries = 0;
+    const timer = setInterval(function () {
+      tries++;
+      if (tryAttach() || tries > 40) {
+        clearInterval(timer);
+        if (tries <= 40) {
+          console.log('✅ 已為絲路建立滑過高亮（路線命中範圍）');
+        } else {
+          console.log('ℹ️ 未能建立絲路滑過高亮：地圖或座標尚未就緒');
+        }
+      }
+    }, 500);
+
+    // 若地圖後續變動（縮放/重繪），保守地再嘗試一次
+    const mapRoot = document.querySelector('#map');
+    if (mapRoot && window.MutationObserver) {
+      const mo = new MutationObserver(() => { tryAttach(); });
+      mo.observe(mapRoot, { childList: true, subtree: true });
+    }
+  } catch (e) {
+    console.warn('PATCH: 絲路整段滑過高亮失敗', e);
+  }
+})();
+// === END PATCH ===
+
+
+// === PATCH (2025-09-08): Hovering over the Silk Road polyline highlights the entire line ===
+(function () {
+  try {
+    if (typeof silkRoadCoords === 'undefined') return;
+    function getMap() {
+      try { if (typeof map !== 'undefined' && map && map.addLayer) return map; } catch (e) {}
+      var container = document.querySelector('.leaflet-container');
+      return (container && container._leaflet) || null;
+    }
+
+    let silkHoverLayer = null;
+    function ensureHoverLayer() {
+      if (!Array.isArray(silkRoadCoords)) return null;
+      if (!silkHoverLayer) {
+        silkHoverLayer = L.polyline(silkRoadCoords, {
+          color: '#FFD166',
+          weight: 8,
+          opacity: 0.9,
+          dashArray: '10,6'
+        });
+      }
+      return silkHoverLayer;
+    }
+
+    function showHover() {
+      const m = getMap(); const l = ensureHoverLayer();
+      if (m && l && !m.hasLayer(l)) { l.addTo(m); if (l.bringToFront) l.bringToFront(); }
+    }
+    function hideHover() {
+      const m = getMap();
+      if (m && silkHoverLayer && m.hasLayer(silkHoverLayer)) m.removeLayer(silkHoverLayer);
+    }
+
+    // 輪詢找出主絲路 polyline，給它加 hover 事件
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts++;
+      try {
+        const m = getMap();
+        if (!m) return;
+        let targetLayer = null;
+        for (const k in m._layers) {
+          const lyr = m._layers[k];
+          if (lyr && lyr._latlngs && Array.isArray(lyr._latlngs) && lyr._latlngs.length > 5) {
+            const first = lyr._latlngs[0];
+            if (first && first.lat && first.lng) {
+              // 簡單判斷：起點是否接近西安 (約 34.34,108.93)
+              if (Math.abs(first.lat - 34.34) < 1 && Math.abs(first.lng - 108.93) < 2) {
+                targetLayer = lyr;
+                break;
+              }
+            }
+          }
+        }
+        if (targetLayer) {
+          if (!targetLayer.__silkHoverBound__) {
+            targetLayer.on('mouseover', showHover);
+            targetLayer.on('mouseout', hideHover);
+            targetLayer.__silkHoverBound__ = true;
+            console.log('✅ 已綁定絲路 polyline 的 hover 高亮效果');
+          }
+          clearInterval(timer);
+        }
+      } catch (e) {}
+      if (attempts > 40) clearInterval(timer);
+    }, 500);
+  } catch (e) {
+    console.warn('PATCH: 絲路 hover 高亮失敗', e);
+  }
+})();
+// === END PATCH ===
+
+
 // === PATCH (2025-09-08): Hovering "西方食材進入中國" highlights the entire Silk Road ===
 (function () {
   try {
