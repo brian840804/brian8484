@@ -864,6 +864,52 @@ const silkRoadLine = L.polyline(silkRoadCoords, {
 // === END 陸上絲綢之路 ===
 
 /* Silk Road visibility: only show at year = 0 (minimal-hook, Approach B) */
+
+
+/* Label for year 0 event on Silk Road midpoint + suppress radius */
+let silkEventLabel;
+function updateSilkRoadEventLabel() {
+  try {
+    const isYearZero = (Number(currentYear) === 0);
+    const midIdx = Math.floor(silkRoadCoords.length / 2);
+    const midCoord = silkRoadCoords[midIdx];
+
+    if (isYearZero) {
+      if (!silkEventLabel) {
+        silkEventLabel = L.marker(midCoord, {
+          interactive: false,
+          icon: L.divIcon({
+            className: 'silk-event-label',
+            html: '<div style="padding:4px 8px;border-radius:10px;background:rgba(255,255,255,0.85);box-shadow:0 2px 6px rgba(0,0,0,0.15);font-weight:600;font-size:12px;letter-spacing:0.5px;">西方食材進入中國</div>',
+            iconSize: [160, 24],
+            iconAnchor: [80, 12]
+          })
+        });
+      } else {
+        silkEventLabel.setLatLng(midCoord);
+      }
+      if (!map.hasLayer(silkEventLabel)) silkEventLabel.addTo(map);
+
+      // Suppress area radius for this event at year 0
+      if (Array.isArray(events)) {
+        events.forEach(ev => {
+          const title = ev.event || ev.name || ev.title;
+          if (title === '西方食材進入中國' && Number(ev.time) === 0) {
+            if (ev.areaLayer && map.hasLayer(ev.areaLayer)) {
+              map.removeLayer(ev.areaLayer);
+            }
+          }
+        });
+      }
+    } else {
+      if (silkEventLabel && map.hasLayer(silkEventLabel)) {
+        map.removeLayer(silkEventLabel);
+      }
+    }
+  } catch (e) {
+    console.warn('updateSilkRoadEventLabel error', e);
+  }
+}
 function updateSilkRoadForYear() {
   try {
     if (typeof map === 'undefined') return;
@@ -1539,7 +1585,9 @@ document.querySelector('.tick-menu-container').appendChild(eraSpansContainer);
       
       // 更新可見事件
       updateVisibleEvents();
-      updateSilkRoadForYear();
+            updateSilkRoadForYear();
+      updateSilkRoadEventLabel();
+updateSilkRoadForYear();
 // 關閉面板
       panel.classList.remove('visible');
     });
