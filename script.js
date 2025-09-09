@@ -1466,6 +1466,53 @@ locationGroups.forEach((locationEvents, locationKey) => {
           });
         });
         createdCircles++;
+        // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
+        try {
+          if (regionName === '蒙古' && Array.isArray(locationEvents) &&
+              locationEvents.some(function(ev){ return ev && ev.name === '遊牧民族的飲食文化'; })) {
+
+            // 清除舊的走廊（避免跨年份殘留）
+            if (map && typeof map.eachLayer === 'function') {
+              map.eachLayer(function(layer){
+                try {
+                  if (layer && layer.options && layer.options.className === 'corridor-ee-mn') {
+                    if (map.hasLayer(layer)) map.removeLayer(layer);
+                  }
+                } catch(e) {}
+              });
+            }
+
+            var eastEurope = [50.0, 25.0];
+            var mongolia = reg.center; // 本分支中的 'reg' 即 regionCircles['蒙古']
+
+            // 折線：清晰呈現「從東歐到蒙古」
+            L.polyline([eastEurope, mongolia], {
+              color: '#1d4ed8',
+              weight: 4,
+              opacity: 0.9,
+              className: 'corridor-ee-mn'
+            }).addTo(map);
+
+            // 兩端淡圈：端點聚焦
+            var endRadius = 550000;
+            [eastEurope, mongolia].forEach(function(pt){
+              L.circle(pt, {
+                radius: endRadius,
+                color: '#1d4ed8',
+                fillColor: '#93c5fd',
+                fillOpacity: 0.28,
+                weight: 2.5,
+                stroke: true,
+                interactive: false,
+                className: 'corridor-ee-mn'
+              }).addTo(map);
+            });
+          }
+        } catch (e) {
+          console.warn('Plan C corridor draw error', e);
+        }
+        // === END PATCH (Plan C) ===
+
       }
     }
     
@@ -1515,6 +1562,18 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
+  // 清除走廊殘留（Plan C 專用，其他圖層不動）
+  try {
+    if (typeof map !== 'undefined' && map.eachLayer) {
+      map.eachLayer(function(layer){
+        try {
+          if (layer && layer.options && layer.options.className === 'corridor-ee-mn') {
+            if (map.hasLayer(layer)) map.removeLayer(layer);
+          }
+        } catch(e) {}
+      });
+    }
+  } catch (e) { console.warn('corridor cleanup error', e); }
   console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
