@@ -659,7 +659,7 @@ let __skipDefaultPlacement = false;
   try {
     var _name = (event && event.name) ? String(event.name).trim() : '';
     var _year = (typeof year !== 'undefined') ? year : null;
-    if (false /* disabled: default Excel flow */ && _name === '美國、紐澳如何躍升牛肉產量大宗？' && _year === 1700) {
+    if (_name === '美國、紐澳如何躍升牛肉產量大宗？' && _year === 1700) {
       if (!window.__EXTRA_ARROWS__) window.__EXTRA_ARROWS__ = [];
       if (typeof regionCircles !== 'undefined') {
         ['英國','美國','澳洲'].forEach(function(k){
@@ -798,6 +798,32 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
   }
 })();
 // === END PATCH ===
+
+    // === PATCH (2025-09-09): 將 1700/美國/「美國畜牧業興起」定位到內華達幾何中心 ===
+(function () {
+  try {
+    if (!Array.isArray(events)) return;
+    var NV_CENTER = [39.5152, -116.8537]; // [lat, lng] 內華達州幾何中心（約略）
+    var changed = 0;
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      if (!ev) continue;
+      // 僅限「地區為美國」且事件名一字不差
+      if (ev.time === 1700 && ev.name === '美國畜牧業興起' && ev.region === '美國') {
+        ev.coords = NV_CENTER;   // 改成精確點位
+        delete ev.region;        // 移除區域圈 fallback，避免再次畫為大圓
+        ev.labelOnly = false;    // 確保會以點顯示
+        changed++;
+      }
+    }
+    console.log(changed > 0
+      ? '✅ 已將 1700/美國/「美國畜牧業興起」定位至內華達幾何中心'
+      : 'ℹ️ 未找到事件：1700/美國/「美國畜牧業興起」');
+  } catch (e) {
+    console.warn('PATCH 內華達定位失敗：', e);
+  }
+})();
+// === END PATCH (2025-09-09) ===
 
     console.log(`📊 處理統計:`);
     console.log(`   總共處理: ${totalProcessed} 筆資料`);
