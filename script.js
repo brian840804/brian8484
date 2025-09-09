@@ -651,16 +651,15 @@ let __skipDefaultPlacement = false;
   }
 })();
 // === END PATCH v12 ===
-// === SPECIAL CASE v2 (beef-triad 1700): three circles + two center dots, NO skip default; ensure original row avoids fuzzy by setting region ===
+// === SPECIAL CASE (Beef 1700 triad): push UK/US/AU circles + US/AU center dots, avoid fuzzy ===
 (function(){
   try {
     var _name = (event && event.name) ? String(event.name).trim() : '';
     var _year = (typeof year !== 'undefined') ? year : null;
-    if (_name === '美國、紐澳如何躍升 牛肉產量大宗？' && _year === 1700) {
+    if (_name === '美國、紐澳如何躍升牛肉產量大宗？' && _year === 1700) {
       if (!window.__EXTRA_ARROWS__) window.__EXTRA_ARROWS__ = [];
       if (typeof regionCircles !== 'undefined') {
-        var keys = ['英國','美國','澳洲'];
-        keys.forEach(function(k){
+        ['英國','美國','澳洲'].forEach(function(k){
           if (regionCircles[k]) {
             events.push({ ...event, coords: undefined, region: k, __beefTriad: true });
             successfulEvents++;
@@ -673,16 +672,14 @@ let __skipDefaultPlacement = false;
         var ukC = regionCircles['英國'] && regionCircles['英國'].center;
         if (ukC && usC) window.__EXTRA_ARROWS__.push({ from: ukC, to: usC });
         if (ukC && auC) window.__EXTRA_ARROWS__.push({ from: ukC, to: auC });
-        // 關鍵：讓這一筆原始 event 直接用英國圈，避免走到模糊匹配支線
+        // 原事件指定英國，避免模糊匹配
         event.region = '英國';
         delete event.coords;
       }
     }
-  } catch(e) { console.warn('v2 beef-triad special case error', e); }
+  } catch(e) { console.warn('Beef 1700 special-case error', e); }
 })();
-// === END SPECIAL CASE v2 ===
-
-
+// === END SPECIAL CASE ===
 
 
 
@@ -800,31 +797,7 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
     console.log(`   成功載入: ${successfulEvents} 個事件`);
     console.log(`   跳過/錯誤: ${skippedEvents} 筆`);
     
-  
-  drawExtraArrows();
-
-// === drawExtraArrows (v2) ===
-function drawExtraArrows() {
-  try {
-    if (!Array.isArray(window.__EXTRA_ARROWS__) || !window.__EXTRA_ARROWS__.length) return;
-    function bearing(a, b) {
-      var y = (b[1] - a[1]);
-      var x = (b[0] - a[0]);
-      return Math.atan2(y, x);
-    }
-    window.__EXTRA_ARROWS__.forEach(function(ar){
-      var line = L.polyline([ar.from, ar.to], { weight: 2.5, opacity: 0.9 }).addTo(map);
-      var deg = bearing(ar.from, ar.to) * 180 / Math.PI;
-      var head = L.divIcon({
-        className: 'arrow-head-icon',
-        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:12px solid black;transform: rotate(' + deg + 'deg); transform-origin: 50% 80%;"></div>',
-        iconSize: [0,0], iconAnchor: [0,0]
-      });
-      L.marker(ar.to, { icon: head, interactive: false }).addTo(map);
-    });
-  } catch(e) { console.warn('drawExtraArrows v2 failed', e); }
-}
-} catch (error) {
+  } catch (error) {
     console.error('❌ 載入 Excel 檔案失敗:', error);
     events = [];
     alert('無法載入歷史資料檔案，請確認 ancient_foods.xlsx 檔案是否存在且格式正確');
@@ -946,7 +919,6 @@ loadingManager.nextStage();
         return !excludeCountries.includes(feature.properties.NAME);
       }
     }).addTo(map);
-
 
     // 添加極地區域
     L.rectangle([[-90, -180], [-60, 180]], { fillColor: '#a0cfff', fillOpacity: 1.0, weight: 0 }).addTo(map);
@@ -1755,6 +1727,8 @@ function updateVisibleEvents() {
       }).addTo(map);
     }
   } catch (e) { console.warn('ee-ellipse draw error', e); }
+
+  try { if (typeof drawBeefArrows==='function') drawBeefArrows(); } catch(e) { console.warn('drawBeefArrows call failed', e); }
 }
 
   // 章節選擇器事件
@@ -2501,3 +2475,40 @@ window.showImageModal = showImageModal;
   }
 })();
 // === END PATCH ===
+
+
+// === drawBeefArrows: render UK→US/AU arrows after markers are drawn ===
+function drawBeefArrows() {
+  try {
+    if (!Array.isArray(window.__EXTRA_ARROWS__) || !window.__EXTRA_ARROWS__.length) return;
+    // cleanup existing beef arrows
+    if (typeof map !== 'undefined' && map.eachLayer) {
+      var toRemove = [];
+      map.eachLayer(function(layer){
+        try {
+          if (layer && layer.options && (layer.options.className === 'beef-arrow')) {
+            toRemove.push(layer);
+          }
+        } catch(e){}
+      });
+      toRemove.forEach(function(l){ if (map.hasLayer(l)) map.removeLayer(l); });
+    }
+    function bearing(a, b) {
+      var y = (b[1] - a[1]);
+      var x = (b[0] - a[0]);
+      return Math.atan2(y, x);
+    }
+    window.__EXTRA_ARROWS__.forEach(function(ar){
+      if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
+      L.polyline([ar.from, ar.to], { weight: 2.5, opacity: 0.9, className: 'beef-arrow' }).addTo(map);
+      var deg = bearing(ar.from, ar.to) * 180 / Math.PI;
+      var head = L.divIcon({
+        className: 'beef-arrow-head',
+        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:12px solid black;transform: rotate(' + deg + 'deg); transform-origin: 50% 80%;"></div>',
+        iconSize: [0,0], iconAnchor: [0,0]
+      });
+      L.marker(ar.to, { icon: head, interactive: false }).addTo(map);
+    });
+  } catch(e) { console.warn('drawBeefArrows failed', e); }
+}
+
