@@ -1745,30 +1745,8 @@ try {
           x = xr; y = yr;
         }
         var offsets = metersToDegrees(center[0], x, y);
-        pts.push([center[0] + offsets[0], center[1
+        pts.push([center[0] + offsets[0], center[1] + offsets[1]]);
 
-try {
-  if (currentYear === 1700 && Array.isArray(window.__EXTRA_ARROWS__) && window.__EXTRA_ARROWS__.length) {
-    window.__EXTRA_ARROWS__.forEach(ar => {
-      if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
-      L.polyline([ar.from, ar.to], {
-        color: '#1d4ed8',   // 和絲路相同色
-        weight: 4,
-        opacity: 0.9,
-        className: 'beef-arrow'
-      }).addTo(map);
-      // 箭頭頭部
-      const deg = Math.atan2(ar.to[1]-ar.from[1], ar.to[0]-ar.from[0]) * 180/Math.PI;
-      const head = L.divIcon({
-        className: 'beef-arrow-head',
-        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid #1d4ed8;transform: rotate('+deg+'deg);transform-origin:50% 80%;"></div>',
-        iconSize: [0,0], iconAnchor: [0,0]
-      });
-      L.marker(ar.to, { icon: head, interactive:false }).addTo(map);
-    });
-  }
-} catch(e) { console.warn('beef-arrow draw error', e); }
-] + offsets[1]]);
       }
 
       L.polygon(pts, {
@@ -2551,6 +2529,4 @@ window.showImageModal = showImageModal;
   }
 })();
 // === END PATCH ===
-
-
 
