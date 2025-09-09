@@ -1,3 +1,5 @@
+
+// Global arrow head toggle (minimal non-breaking)
 const SHOW_ARROWS = false;
 const regionCircles = {
   '歐洲(西歐)': { center: [48, 5], radius: 700000 },
@@ -1507,7 +1509,8 @@ locationGroups.forEach((locationEvents, locationKey) => {
       // 為區域事件添加圓形
       if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
-        locationEvents.forEach(ev => {
+        if (!(currentYear === 1700 && (regionName === '英國' || regionName === '美國' || regionName === '澳洲'))) {
+locationEvents.forEach(ev => {
           ev.areaLayer = L.circle(reg.center, {
             radius: reg.radius,
             color: '#3b82f6',
@@ -1519,6 +1522,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
             className: 'region-circle'
           });
         });
+}
         createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
@@ -1768,14 +1772,13 @@ try {
     window.__EXTRA_ARROWS__.forEach(ar => {
       if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
       L.polyline([ar.from, ar.to], {
-        color: '#1d4ed8',   // 和絲路相同色
+        color: '#f97316',   // 和絲路相同色
         weight: 4,
         opacity: 0.9,
         className: 'beef-arrow'
       }).addTo(map);
-      // 可選：終點箭頭
       if (SHOW_ARROWS) {
-
+// 可選：終點箭頭
       const deg = Math.atan2(ar.to[1]-ar.from[1], ar.to[0]-ar.from[0]) * 180/Math.PI;
       const head = L.divIcon({
         className: 'beef-arrow-head',
@@ -1783,8 +1786,7 @@ try {
         iconSize: [0,0], iconAnchor: [0,0]
       });
       L.marker(ar.to, { icon: head, interactive:false }).addTo(map);
-    
-      }
+    }
 });
   }
 } catch(e) { console.warn('beef-arrow draw error', e); }
