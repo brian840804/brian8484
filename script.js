@@ -1468,8 +1468,12 @@ locationGroups.forEach((locationEvents, locationKey) => {
         createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
-          if (regionName === '蒙古' && Array.isArray(locationEvents) &&
-              locationEvents.some(function(ev){ return ev && ev.name === '遊牧民族的飲食文化'; })) {
+          if (Array.isArray(locationEvents) &&
+              locationEvents.some(function(ev){
+                var n = ev && ev.name;
+                var r = ev && ev.region;
+                return (n === '遊牧民族的飲食文化') || (typeof r === 'string' && r.indexOf('東歐') !== -1 && r.indexOf('蒙古') !== -1);
+              })) {
 
             // 清除舊的走廊（避免跨年份殘留）
             if (map && typeof map.eachLayer === 'function') {
@@ -1483,7 +1487,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
             }
 
             var eastEurope = [50.0, 25.0];
-            var mongolia = reg.center; // 本分支中的 'reg' 即 regionCircles['蒙古']
+            var mongolia = (regionCircles && regionCircles['蒙古'] && regionCircles['蒙古'].center) || [46.0, 103.0];
 
             // 折線：清晰呈現「從東歐到蒙古」
             L.polyline([eastEurope, mongolia], {
