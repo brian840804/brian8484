@@ -1480,6 +1480,40 @@ locationGroups.forEach((locationEvents, locationKey) => {
           });
         });
         createdCircles++;
+        // === PATCH: 英國；美國；澳洲 → 額外繪製美國與澳洲的區域圓 ===
+        try {
+          if (Array.isArray(locationEvents) &&
+              locationEvents.some(function(ev){ return ev && ev.region === '英國；美國；澳洲'; })) {
+            var us = regionCircles['美國'];
+            var au = regionCircles['澳洲'];
+            if (us && us.center && us.radius) {
+              L.circle(us.center, {
+                radius: us.radius,
+                color: '#3b82f6',
+                fillColor: '#dbeafe',
+                fillOpacity: 0.25,
+                weight: 2.5,
+                stroke: true,
+                interactive: false,
+                className: 'ukusau-extra'
+              }).addTo(map);
+            }
+            if (au && au.center && au.radius) {
+              L.circle(au.center, {
+                radius: au.radius,
+                color: '#3b82f6',
+                fillColor: '#dbeafe',
+                fillOpacity: 0.25,
+                weight: 2.5,
+                stroke: true,
+                interactive: false,
+                className: 'ukusau-extra'
+              }).addTo(map);
+            }
+          }
+        } catch(e) { console.warn('ukusau-extra draw error', e); }
+        // === END PATCH ===
+
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
           if (Array.isArray(locationEvents) &&
@@ -1580,6 +1614,18 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
+  // 清除「英國；美國；澳洲」的額外圓形（僅清這個類別，其他不動）
+  try {
+    if (typeof map !== 'undefined' && map.eachLayer) {
+      map.eachLayer(function(layer){
+        try {
+          if (layer && layer.options && layer.options.className === 'ukusau-extra') {
+            if (map.hasLayer(layer)) map.removeLayer(layer);
+          }
+        } catch(e) {}
+      });
+    }
+  } catch (e) { console.warn('ukusau-extra cleanup error', e); }
   // 清除舊的「東歐至蒙古」橢圓圖層（只清這個類別，不影響其他）
   try {
     if (typeof map !== 'undefined' && map.eachLayer) {
