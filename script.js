@@ -799,7 +799,7 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
 })();
 // === END PATCH ===
 
-    // === PATCH (2025-09-09): 1700/美國/「美國畜牧業興起」 -> 內華達幾何中心（最小改動） ===
+    // === PATCH (2025-09-09): 1700/美國/「美國西部畜牧業興起」 -> 內華達幾何中心（最小改動） ===
 (function () {
   try {
     if (!Array.isArray(events)) return;
@@ -808,15 +808,14 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
     for (var i = 0; i < events.length; i++) {
       var ev = events[i];
       if (!ev) continue;
-      // 僅命中：年份=1700、事件名一字不差、地區一字不差為「美國」
-      if (ev.time === 1700 && ev.name === '美國畜牧業興起' && ev.region === '美國') {
-        ev.coords = NV_CENTER;   // 以點位呈現
-        delete ev.region;        // 移除區域圈 fallback
+      if (ev.time === 1700 && ev.name === '美國西部畜牧業興起' && ev.region === '美國') {
+        ev.coords = NV_CENTER;
+        delete ev.region; // avoid region-circle fallback
         changed++;
       }
     }
-    console.log(changed>0 ? '✅ 內華達定位已套用於「美國畜牧業興起」(1700/美國)' : 'ℹ️ 未找到「美國畜牧業興起」(1700/美國)');
-  } catch (e) { console.warn('PATCH Nevada center failed:', e); }
+    console.log(changed>0 ? '✅ 已將「美國西部畜牧業興起」(1700/美國) 置於內華達幾何中心' : 'ℹ️ 未找到 1700/美國/美國西部畜牧業興起');
+  } catch (e) { console.warn('PATCH NV center (west cattle) failed:', e); }
 })();
 // === END PATCH (2025-09-09) ===
 
