@@ -1483,9 +1483,13 @@ locationGroups.forEach((locationEvents, locationKey) => {
         // === PATCH: 英國；美國；澳洲 → 額外繪製美國與澳洲的區域圓 ===
         try {
           if (Array.isArray(locationEvents) &&
-              locationEvents.some(function(ev){ return ev && ev.region === '英國；美國；澳洲'; })) {
-            var us = regionCircles['美國'];
-            var au = regionCircles['澳洲'];
+              locationEvents.some(function(ev){ return ev && ev.name === '美國、紐澳如何躍升 牛肉產量大宗？'; }) {
+
+                var r = ev && ev.region ? String(ev.region).trim() : '';
+                return r && r.indexOf('英國') !== -1 && r.indexOf('美國') !== -1 && r.indexOf('澳洲') !== -1;
+              })) {
+            var us = (regionCircles && regionCircles['美國']) || { center: [39.8, -98.6], radius: 800000 };
+            var au = (regionCircles && regionCircles['澳洲']) || { center: [-25.3, 133.8], radius: 800000 };
             if (us && us.center && us.radius) {
               L.circle(us.center, {
                 radius: us.radius,
