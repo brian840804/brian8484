@@ -1525,7 +1525,7 @@ locationEvents.forEach(ev => {
     className: 'region-circle'
   });
 });
-        createdCircles++;
+createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
           if (Array.isArray(locationEvents) &&
