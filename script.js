@@ -662,6 +662,10 @@ else {
     } else if (regionCircles[fuzzyMatch]) {
       event.region = fuzzyMatch;
     }
+  } else if ((row['地區'] || '').trim() === '東歐至蒙古') {
+    // 特例：避免落入中東預設；用『蒙古』作為定位（紅點仍可點），走廊另行繪製
+    event.region = '蒙古';
+    console.log('   🏷️ 特例處理：東歐至蒙古 → 蒙古（並繪製走廊）');
   } else {
     // 為未匹配地區添加預設位置
     event.region = row['地區'];
@@ -1462,6 +1466,8 @@ locationGroups.forEach((locationEvents, locationKey) => {
           });
         });
         createdCircles++;
+      
+
       }
     }
     
@@ -1474,7 +1480,52 @@ locationGroups.forEach((locationEvents, locationKey) => {
   } catch (error) {
     console.error('創建標記時出錯:', error, locationEvents);
   }
-});
+}
+
+// === PATCH (2025-09-09): Corridor for 「東歐至蒙古」 → 讓走廊明顯可見 ===
+(function() {
+  try {
+    if (typeof map === 'undefined') return;
+    if (!Array.isArray(events)) return;
+
+    // 只針對名稱精確為「遊牧民族的飲食文化」的那筆
+    var target = events.find(function(ev){ return ev && ev.name === '遊牧民族的飲食文化'; });
+    if (!target) return;
+
+    // 走廊兩端：東歐（近似中心）→ 蒙古（取你現有 regionCircles['蒙古'] 中心，若無則備援座標）
+    var eastEurope = [50.0, 25.0];
+    var mongolia = (regionCircles && regionCircles['蒙古'] && regionCircles['蒙古'].center) || [46.0, 103.0];
+
+    // 視覺加強（「走廊要明顯」）：較多節點 + 較粗邊 + 稍高填充
+    var steps = 8;                // 節點數（越多越密）
+    var radius = 600000;          // 每顆圈的半徑（公尺）
+    var strokeColor = '#2563eb';  // 藍（比區域圈稍深）
+    var fillColor = '#93c5fd';    // 淺藍
+    var fillOpacity = 0.30;
+    var weight = 3;
+
+    for (var i = 0; i < steps; i++) {
+      var t = (steps === 1) ? 0.5 : (i / (steps - 1));
+      var lat = eastEurope[0] + (mongolia[0] - eastEurope[0]) * t;
+      var lng = eastEurope[1] + (mongolia[1] - eastEurope[1]) * t;
+      L.circle([lat, lng], {
+        radius: radius,
+        color: strokeColor,
+        fillColor: fillColor,
+        fillOpacity: fillOpacity,
+        weight: weight,
+        stroke: true,
+        interactive: false,
+        className: 'corridor-ee-mn'
+      }).addTo(map);
+    }
+    console.log('🛤️ 已繪製「東歐至蒙古」走廊（圈帶）');
+  } catch (e) {
+    console.warn('繪製走廊失敗：', e);
+  }
+})();
+// === END PATCH ===
+);
 
 console.log(`✅ 標記創建完成: ${createdMarkers} 個位置標記, ${createdCircles} 個區域標記`);
 
