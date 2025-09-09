@@ -551,6 +551,8 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
+let __consumeOriginal = false;
+
 // === PATCH (EE→MN ellipse setup): 將「東歐至蒙古」事件定位到哈薩克幾何中心（座標），避免落入預設區域 ===
 (function(){
   try {
@@ -651,7 +653,8 @@ let __skipDefaultPlacement = false;
   }
 })();
 // === END PATCH v12 ===
-// === SPECIAL CASE (Beef 1700 triad): push UK/US/AU circles + US/AU center dots, avoid fuzzy ===
+
+// === SPECIAL CASE (Beef 1700 triad consume): push UK/US/AU circles + US/AU centers; consume original ===
 (function(){
   try {
     var _name = (event && event.name) ? String(event.name).trim() : '';
@@ -672,14 +675,19 @@ let __skipDefaultPlacement = false;
         var ukC = regionCircles['英國'] && regionCircles['英國'].center;
         if (ukC && usC) window.__EXTRA_ARROWS__.push({ from: ukC, to: usC });
         if (ukC && auC) window.__EXTRA_ARROWS__.push({ from: ukC, to: auC });
-        // 原事件指定英國，避免模糊匹配
-        event.region = '英國';
-        delete event.coords;
       }
+      // consume original row (do not push the raw event)
+      __consumeOriginal = true;
+      // optional isolation
+      __skipDefaultPlacement = true;
     }
-  } catch(e) { console.warn('Beef 1700 special-case error', e); }
+  } catch(e) { console.warn('Beef 1700 consume special-case error', e); }
 })();
 // === END SPECIAL CASE ===
+
+
+
+
 
 
 
@@ -733,8 +741,7 @@ if (event.videos.length > 0 || event.images.length > 0) {
 
           } // end dual-skip guard
 
-events.push(event);
-successfulEvents++;
+if (!__consumeOriginal) if (!__consumeOriginal) { events.push(event); successfulEvents++; }
 console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
         });
       }
@@ -1729,6 +1736,8 @@ function updateVisibleEvents() {
   } catch (e) { console.warn('ee-ellipse draw error', e); }
 
   try { if (typeof drawBeefArrows==='function') drawBeefArrows(); } catch(e) { console.warn('drawBeefArrows call failed', e); }
+
+  try { if (typeof drawBeefArrows==='function') drawBeefArrows(); } catch(e) {}
 }
 
   // 章節選擇器事件
