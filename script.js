@@ -551,8 +551,6 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
-let __consumeOriginal = false;
-
 // === PATCH (EE→MN ellipse setup): 將「東歐至蒙古」事件定位到哈薩克幾何中心（座標），避免落入預設區域 ===
 (function(){
   try {
@@ -654,43 +652,6 @@ let __skipDefaultPlacement = false;
 })();
 // === END PATCH v12 ===
 
-// === SPECIAL CASE (Beef 1700 triad consume): push UK/US/AU circles + US/AU centers; consume original ===
-(function(){
-  try {
-    var _name = (event && event.name) ? String(event.name).trim() : '';
-    var _year = (typeof year !== 'undefined') ? year : null;
-    if (_name === '美國、紐澳如何躍升牛肉產量大宗？' && _year === 1700) {
-      if (!window.__EXTRA_ARROWS__) window.__EXTRA_ARROWS__ = [];
-      if (typeof regionCircles !== 'undefined') {
-        ['英國','美國','澳洲'].forEach(function(k){
-          if (regionCircles[k]) {
-            events.push({ ...event, coords: undefined, region: k, __beefTriad: true });
-            successfulEvents++;
-          }
-        });
-        var usC = regionCircles['美國'] && regionCircles['美國'].center;
-        var auC = regionCircles['澳洲'] && regionCircles['澳洲'].center;
-        if (usC) { events.push({ ...event, coords: usC, region: undefined, __beefTriad: true, __centerDot: 'US' }); successfulEvents++; }
-        if (auC) { events.push({ ...event, coords: auC, region: undefined, __beefTriad: true, __centerDot: 'AU' }); successfulEvents++; }
-        var ukC = regionCircles['英國'] && regionCircles['英國'].center;
-        if (ukC && usC) window.__EXTRA_ARROWS__.push({ from: ukC, to: usC });
-        if (ukC && auC) window.__EXTRA_ARROWS__.push({ from: ukC, to: auC });
-      }
-      // consume original row (do not push the raw event)
-      __consumeOriginal = true;
-      // optional isolation
-      __skipDefaultPlacement = true;
-    }
-  } catch(e) { console.warn('Beef 1700 consume special-case error', e); }
-})();
-// === END SPECIAL CASE ===
-
-
-
-
-
-
-
 
 
 
@@ -741,7 +702,8 @@ if (event.videos.length > 0 || event.images.length > 0) {
 
           } // end dual-skip guard
 
-if (!__consumeOriginal) if (!__consumeOriginal) { events.push(event); successfulEvents++; }
+events.push(event);
+successfulEvents++;
 console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
         });
       }
@@ -1734,10 +1696,6 @@ function updateVisibleEvents() {
       }).addTo(map);
     }
   } catch (e) { console.warn('ee-ellipse draw error', e); }
-
-  try { if (typeof drawBeefArrows==='function') drawBeefArrows(); } catch(e) { console.warn('drawBeefArrows call failed', e); }
-
-  try { if (typeof drawBeefArrows==='function') drawBeefArrows(); } catch(e) {}
 }
 
   // 章節選擇器事件
@@ -2484,40 +2442,3 @@ window.showImageModal = showImageModal;
   }
 })();
 // === END PATCH ===
-
-
-// === drawBeefArrows: render UK→US/AU arrows after markers are drawn ===
-function drawBeefArrows() {
-  try {
-    if (!Array.isArray(window.__EXTRA_ARROWS__) || !window.__EXTRA_ARROWS__.length) return;
-    // cleanup existing beef arrows
-    if (typeof map !== 'undefined' && map.eachLayer) {
-      var toRemove = [];
-      map.eachLayer(function(layer){
-        try {
-          if (layer && layer.options && (layer.options.className === 'beef-arrow')) {
-            toRemove.push(layer);
-          }
-        } catch(e){}
-      });
-      toRemove.forEach(function(l){ if (map.hasLayer(l)) map.removeLayer(l); });
-    }
-    function bearing(a, b) {
-      var y = (b[1] - a[1]);
-      var x = (b[0] - a[0]);
-      return Math.atan2(y, x);
-    }
-    window.__EXTRA_ARROWS__.forEach(function(ar){
-      if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
-      L.polyline([ar.from, ar.to], { weight: 2.5, opacity: 0.9, className: 'beef-arrow' }).addTo(map);
-      var deg = bearing(ar.from, ar.to) * 180 / Math.PI;
-      var head = L.divIcon({
-        className: 'beef-arrow-head',
-        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:12px solid black;transform: rotate(' + deg + 'deg); transform-origin: 50% 80%;"></div>',
-        iconSize: [0,0], iconAnchor: [0,0]
-      });
-      L.marker(ar.to, { icon: head, interactive: false }).addTo(map);
-    });
-  } catch(e) { console.warn('drawBeefArrows failed', e); }
-}
-
