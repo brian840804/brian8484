@@ -557,7 +557,9 @@ loadingManager.nextStage();
     var loc = (row && row['地區']) ? String(row['地區']).trim() : '';
     if (loc === '東歐至蒙古') {
       // 哈薩克近似幾何中心（緯度、經度）
-      event.coords = [48.0, 67.0];
+      var northShiftDeg = 150000 / 111320;
+      var _latEE = 48.0 + northShiftDeg;
+      event.coords = [_latEE, 67.0];
       event.region = undefined; // 以座標為主，避免被區域分組接手
     }
   } catch(e) { console.warn(e); }
@@ -1655,9 +1657,10 @@ function updateVisibleEvents() {
               (typeof ev.region === 'string' && ev.region.indexOf('東歐') !== -1 && ev.region.indexOf('蒙古') !== -1));
     });
     if (eeVisible && typeof L !== 'undefined') {
-      var center = [48.0, 67.0]; // 哈薩克近似幾何中心
-      var rx = 900000; // 橫軸（公尺）
-      var ry = 500000; // 縱軸（公尺）
+      var northShiftDeg = 150000 / 111320;
+      var center = [48.0 + northShiftDeg, 67.0]; // 哈薩克近似幾何中心
+      var rx = 2700000; // 橫軸（公尺）
+      var ry = 750000; // 縱軸（公尺）
       var rotate = 0;  // 旋轉角度（度）
       var steps = 96;
 
