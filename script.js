@@ -551,6 +551,8 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
+let __consumeOriginal = false;
+
 // === PATCH (EE→MN ellipse setup): 將「東歐至蒙古」事件定位到哈薩克幾何中心（座標），避免落入預設區域 ===
 (function(){
   try {
@@ -652,6 +654,43 @@ let __skipDefaultPlacement = false;
 })();
 // === END PATCH v12 ===
 
+// === SPECIAL CASE (Beef 1700 triad consume): push UK/US/AU circles + US/AU centers; consume original ===
+(function(){
+  try {
+    var _name = (event && event.name) ? String(event.name).trim() : '';
+    var _year = (typeof year !== 'undefined') ? year : null;
+    if (_name === '美國、紐澳如何躍升牛肉產量大宗？' && _year === 1700) {
+      if (!window.__EXTRA_ARROWS__) window.__EXTRA_ARROWS__ = [];
+      if (typeof regionCircles !== 'undefined') {
+        ['英國','美國','澳洲'].forEach(function(k){
+          if (regionCircles[k]) {
+            events.push({ ...event, coords: undefined, region: k, __beefTriad: true });
+            successfulEvents++;
+          }
+        });
+        var usC = regionCircles['美國'] && regionCircles['美國'].center;
+        var auC = regionCircles['澳洲'] && regionCircles['澳洲'].center;
+        if (usC) { events.push({ ...event, coords: usC, region: undefined, __beefTriad: true, __centerDot: 'US' }); successfulEvents++; }
+        if (auC) { events.push({ ...event, coords: auC, region: undefined, __beefTriad: true, __centerDot: 'AU' }); successfulEvents++; }
+        var ukC = regionCircles['英國'] && regionCircles['英國'].center;
+        if (ukC && usC) window.__EXTRA_ARROWS__.push({ from: ukC, to: usC });
+        if (ukC && auC) window.__EXTRA_ARROWS__.push({ from: ukC, to: auC });
+      }
+      // consume original row (do not push the raw event)
+      __consumeOriginal = true;
+      // optional isolation
+      __skipDefaultPlacement = true;
+    }
+  } catch(e) { console.warn('Beef 1700 consume special-case error', e); }
+})();
+// === END SPECIAL CASE ===
+
+
+
+
+
+
+
 
 
 
@@ -702,8 +741,7 @@ if (event.videos.length > 0 || event.images.length > 0) {
 
           } // end dual-skip guard
 
-events.push(event);
-successfulEvents++;
+if (!__consumeOriginal) if (!__consumeOriginal) { events.push(event); successfulEvents++; }
 console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
         });
       }
@@ -801,6 +839,7 @@ loadingManager.nextStage();
   const initialCenter = [20, 0];
   const initialZoom = 3;
 const map = L.map('map', {
+
   maxBounds: [[-60, -180], [75, 180]],
   maxBoundsViscosity: 1,
   minZoom: 3,
@@ -1470,17 +1509,14 @@ locationGroups.forEach((locationEvents, locationKey) => {
         locationEvents.forEach(ev => {
           ev.areaLayer = L.circle(reg.center, {
             radius: reg.radius,
-            color: '#f97316',
-            fillColor: '#ffedd5',
+            color: '#3b82f6',
+            fillColor: '#dbeafe',
             fillOpacity: 0.25,
             weight: 2.5,
             stroke: true,
             interactive: false,
             className: 'region-circle'
           });
-                  try { const isBeef1700 = (typeof currentYear !== 'undefined' && currentYear === 1700) && (ev && ev.__beefTriad); if (isBeef1700 && ev.areaLayer && ev.areaLayer.setStyle) { ev.areaLayer.setStyle({ color: '#f97316', fillColor: '#ffedd5' }); } } catch(e) { console.warn('beef triad style set failed', e); }
-const isBeef1700 = (currentYear === 1700) && !!ev.__beefTriad;
-          if (isBeef1700) ev.areaLayer.setStyle({ color: '#f97316', fillColor: '#ffedd5' });
         });
         createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
@@ -1508,7 +1544,7 @@ const isBeef1700 = (currentYear === 1700) && !!ev.__beefTriad;
 
             // 折線：清晰呈現「從東歐到蒙古」
             L.polyline([eastEurope, mongolia], {
-              color: '#f97316',
+              color: '#1d4ed8',
               weight: 4,
               opacity: 0.9,
               className: 'corridor-ee-mn'
@@ -1519,7 +1555,7 @@ const isBeef1700 = (currentYear === 1700) && !!ev.__beefTriad;
             [eastEurope, mongolia].forEach(function(pt){
               L.circle(pt, {
                 radius: endRadius,
-                color: '#f97316',
+                color: '#1d4ed8',
                 fillColor: '#93c5fd',
                 fillOpacity: 0.28,
                 weight: 2.5,
@@ -1583,6 +1619,18 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
+
+// 清除牛肉箭頭殘留（只清這個類別）
+try {
+  if (typeof map !== 'undefined' && map.eachLayer) {
+    const toRemove = [];
+    map.eachLayer(l => { try {
+      if (l && l.options && l.options.className === 'beef-arrow') toRemove.push(l);
+    } catch(e){} });
+    toRemove.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+  }
+} catch (e) { console.warn('beef-arrow cleanup error', e); }
+
   // 清除舊的「東歐至蒙古」橢圓圖層（只清這個類別，不影響其他）
   try {
     if (typeof map !== 'undefined' && map.eachLayer) {
@@ -1607,6 +1655,17 @@ function updateVisibleEvents() {
       });
     }
   } catch (e) { console.warn('corridor cleanup error', e); }
+
+// 清除牛肉箭頭殘留（只清這個類別）
+try {
+  if (typeof map !== 'undefined' && map.eachLayer) {
+    const toRemove = [];
+    map.eachLayer(l => { try {
+      if (l && l.options && l.options.className === 'beef-arrow') toRemove.push(l);
+    } catch(e){} });
+    toRemove.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+  }
+} catch (e) { console.warn('beef-arrow cleanup error', e); }
   console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
@@ -1687,10 +1746,11 @@ function updateVisibleEvents() {
         }
         var offsets = metersToDegrees(center[0], x, y);
         pts.push([center[0] + offsets[0], center[1] + offsets[1]]);
+
       }
 
       L.polygon(pts, {
-        color: '#f97316',
+        color: '#1d4ed8',
         weight: 2,
         fillColor: '#93c5fd',
         fillOpacity: 0.25,
@@ -1699,6 +1759,30 @@ function updateVisibleEvents() {
       }).addTo(map);
     }
   } catch (e) { console.warn('ee-ellipse draw error', e); }
+
+  
+// 繪製牛肉箭頭（比照絲路折線風格）
+try {
+  if (currentYear === 1700 && Array.isArray(window.__EXTRA_ARROWS__) && window.__EXTRA_ARROWS__.length) {
+    window.__EXTRA_ARROWS__.forEach(ar => {
+      if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
+      L.polyline([ar.from, ar.to], {
+        color: '#1d4ed8',   // 和絲路相同色
+        weight: 4,
+        opacity: 0.9,
+        className: 'beef-arrow'
+      }).addTo(map);
+      // 可選：終點箭頭
+      const deg = Math.atan2(ar.to[1]-ar.from[1], ar.to[0]-ar.from[0]) * 180/Math.PI;
+      const head = L.divIcon({
+        className: 'beef-arrow-head',
+        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid #1d4ed8;transform: rotate('+deg+'deg);transform-origin:50% 80%;"></div>',
+        iconSize: [0,0], iconAnchor: [0,0]
+      });
+      L.marker(ar.to, { icon: head, interactive:false }).addTo(map);
+    });
+  }
+} catch(e) { console.warn('beef-arrow draw error', e); }
 }
 
   // 章節選擇器事件
@@ -2445,3 +2529,4 @@ window.showImageModal = showImageModal;
   }
 })();
 // === END PATCH ===
+
