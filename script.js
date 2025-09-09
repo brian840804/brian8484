@@ -651,7 +651,7 @@ let __skipDefaultPlacement = false;
   }
 })();
 // === END PATCH v12 ===
-// === SPECIAL CASE v1 (beef-triad 1700): three circles + two center dots, skip default placement ===
+// === SPECIAL CASE v2 (beef-triad 1700): three circles + two center dots, NO skip default; ensure original row avoids fuzzy by setting region ===
 (function(){
   try {
     var _name = (event && event.name) ? String(event.name).trim() : '';
@@ -666,21 +666,21 @@ let __skipDefaultPlacement = false;
             successfulEvents++;
           }
         });
-        // center dots
         var usC = regionCircles['美國'] && regionCircles['美國'].center;
         var auC = regionCircles['澳洲'] && regionCircles['澳洲'].center;
         if (usC) { events.push({ ...event, coords: usC, region: undefined, __beefTriad: true, __centerDot: 'US' }); successfulEvents++; }
         if (auC) { events.push({ ...event, coords: auC, region: undefined, __beefTriad: true, __centerDot: 'AU' }); successfulEvents++; }
-        // prepare arrows
         var ukC = regionCircles['英國'] && regionCircles['英國'].center;
         if (ukC && usC) window.__EXTRA_ARROWS__.push({ from: ukC, to: usC });
         if (ukC && auC) window.__EXTRA_ARROWS__.push({ from: ukC, to: auC });
+        // 關鍵：讓這一筆原始 event 直接用英國圈，避免走到模糊匹配支線
+        event.region = '英國';
+        delete event.coords;
       }
-      __skipDefaultPlacement = true; // ensure default placement is skipped for this row
     }
-  } catch(e) { console.warn('v1 beef-triad special case error', e); }
+  } catch(e) { console.warn('v2 beef-triad special case error', e); }
 })();
-// === END SPECIAL CASE v1 ===
+// === END SPECIAL CASE v2 ===
 
 
 
@@ -803,7 +803,7 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
   
   drawExtraArrows();
 
-// === drawExtraArrows (v1) ===
+// === drawExtraArrows (v2) ===
 function drawExtraArrows() {
   try {
     if (!Array.isArray(window.__EXTRA_ARROWS__) || !window.__EXTRA_ARROWS__.length) return;
@@ -822,7 +822,7 @@ function drawExtraArrows() {
       });
       L.marker(ar.to, { icon: head, interactive: false }).addTo(map);
     });
-  } catch(e) { console.warn('drawExtraArrows v1 failed', e); }
+  } catch(e) { console.warn('drawExtraArrows v2 failed', e); }
 }
 } catch (error) {
     console.error('❌ 載入 Excel 檔案失敗:', error);
