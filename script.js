@@ -53,7 +53,10 @@ const regionCircles = {
   '非洲': { center: [0, 20], radius: 1500000 },
   '澳洲': { center: [-25, 135], radius: 1000000 },
   '紐西蘭': { center: [-40, 175], radius: 300000 },
-  '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 }
+  '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 },
+  '中南美洲': { center: [4.57, -74.30], radius: 2600000 },
+  '義大利、希臘': { center: [40.75, 17.25], radius: 450000 },
+  '雅典、羅馬': { center: [40.75, 17.25], radius: 450000 }
 };
 
 
@@ -1482,49 +1485,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
   }
 }
 
-// === PATCH (2025-09-09): Corridor for 「東歐至蒙古」 → 讓走廊明顯可見 ===
-(function() {
-  try {
-    if (typeof map === 'undefined') return;
-    if (!Array.isArray(events)) return;
 
-    // 只針對名稱精確為「遊牧民族的飲食文化」的那筆
-    var target = events.find(function(ev){ return ev && ev.name === '遊牧民族的飲食文化'; });
-    if (!target) return;
-
-    // 走廊兩端：東歐（近似中心）→ 蒙古（取你現有 regionCircles['蒙古'] 中心，若無則備援座標）
-    var eastEurope = [50.0, 25.0];
-    var mongolia = (regionCircles && regionCircles['蒙古'] && regionCircles['蒙古'].center) || [46.0, 103.0];
-
-    // 視覺加強（「走廊要明顯」）：較多節點 + 較粗邊 + 稍高填充
-    var steps = 8;                // 節點數（越多越密）
-    var radius = 600000;          // 每顆圈的半徑（公尺）
-    var strokeColor = '#2563eb';  // 藍（比區域圈稍深）
-    var fillColor = '#93c5fd';    // 淺藍
-    var fillOpacity = 0.30;
-    var weight = 3;
-
-    for (var i = 0; i < steps; i++) {
-      var t = (steps === 1) ? 0.5 : (i / (steps - 1));
-      var lat = eastEurope[0] + (mongolia[0] - eastEurope[0]) * t;
-      var lng = eastEurope[1] + (mongolia[1] - eastEurope[1]) * t;
-      L.circle([lat, lng], {
-        radius: radius,
-        color: strokeColor,
-        fillColor: fillColor,
-        fillOpacity: fillOpacity,
-        weight: weight,
-        stroke: true,
-        interactive: false,
-        className: 'corridor-ee-mn'
-      }).addTo(map);
-    }
-    console.log('🛤️ 已繪製「東歐至蒙古」走廊（圈帶）');
-  } catch (e) {
-    console.warn('繪製走廊失敗：', e);
-  }
-})();
-// === END PATCH ===
 );
 
 console.log(`✅ 標記創建完成: ${createdMarkers} 個位置標記, ${createdCircles} 個區域標記`);
