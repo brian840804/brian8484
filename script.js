@@ -1466,7 +1466,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
         // === PATCH: 額外圓（美國、澳洲）— 觸發條件：事件名為「美國、紐澳如何躍升 牛肉產量大宗？」 ===
         try {
           if (Array.isArray(locationEvents) &&
-              locationEvents.some(function(ev){ return ev && ev.name === '美國、紐澳如何躍升 牛肉產量大宗？'; })) {
+              locationEvents.some(function(ev){ return ev && typeof ev.name === 'string' && ev.name.indexOf('牛肉') !== -1; })) {
 
             // 安全清理上一輪的額外圈，避免疊加
             if (typeof map !== 'undefined' && map.eachLayer) {
