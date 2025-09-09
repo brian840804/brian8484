@@ -840,12 +840,6 @@ loadingManager.nextStage();
   const initialZoom = 3;
 const map = L.map('map', {
 
-try {
-  if (!map.getPane('beefPane')) {
-    map.createPane('beefPane');
-    map.getPane('beefPane').style.zIndex = 650;
-  }
-} catch(e) { console.warn('beefPane create error', e); }
   maxBounds: [[-60, -180], [75, 180]],
   maxBoundsViscosity: 1,
   minZoom: 3,
@@ -2559,27 +2553,4 @@ window.showImageModal = showImageModal;
 // === END PATCH ===
 
 
-// === drawBeefArrows: render UK→US/AU arrows after markers are drawn ===
-        } catch(e){}
-      });
-      toRemove.forEach(function(l){ if (map.hasLayer(l)) map.removeLayer(l); });
-    }
-    function bearing(a, b) {
-      var y = (b[1] - a[1]);
-      var x = (b[0] - a[0]);
-      return Math.atan2(y, x);
-    }
-    window.__EXTRA_ARROWS__.forEach(function(ar){
-      if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
-      L.polyline([ar.from, ar.to], {  weight: 2.5, opacity: 0.9, className: 'beef-arrow'  }).addTo(map);
-      var deg = bearing(ar.from, ar.to) * 180 / Math.PI;
-      var head = L.divIcon({
-        className: 'beef-arrow-head',
-        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:12px solid black;transform: rotate(' + deg + 'deg); transform-origin: 50% 80%;"></div>',
-        iconSize: [0,0], iconAnchor: [0,0]
-      });
-      L.marker(ar.to, { icon: head, interactive: false   pane: 'beefPane' }).addTo(map);
-    });
-  } catch(e) { console.warn('drawBeefArrows failed', e); }
-}
 
