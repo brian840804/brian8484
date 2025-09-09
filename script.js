@@ -1470,14 +1470,17 @@ locationGroups.forEach((locationEvents, locationKey) => {
         locationEvents.forEach(ev => {
           ev.areaLayer = L.circle(reg.center, {
             radius: reg.radius,
-            color: (ev.__beefTriad ? '#f97316' : '#3b82f6'),
-            fillColor: (ev.__beefTriad ? '#ffedd5' : '#dbeafe'),
+            color: '#3b82f6',
+            fillColor: '#dbeafe',
             fillOpacity: 0.25,
             weight: 2.5,
             stroke: true,
             interactive: false,
             className: 'region-circle'
           });
+                  try { const isBeef1700 = (typeof currentYear !== 'undefined' && currentYear === 1700) && (ev && ev.__beefTriad); if (isBeef1700 && ev.areaLayer && ev.areaLayer.setStyle) { ev.areaLayer.setStyle({ color: '#f97316', fillColor: '#ffedd5' }); } } catch(e) { console.warn('beef triad style set failed', e); }
+const isBeef1700 = (currentYear === 1700) && !!ev.__beefTriad;
+          if (isBeef1700) ev.areaLayer.setStyle({ color: '#f97316', fillColor: '#ffedd5' });
         });
         createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
