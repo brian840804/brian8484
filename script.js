@@ -53,11 +53,7 @@ const regionCircles = {
   '非洲': { center: [0, 20], radius: 1500000 },
   '澳洲': { center: [-25, 135], radius: 1000000 },
   '紐西蘭': { center: [-40, 175], radius: 300000 },
-  '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 },
-  '中南美洲': { center: [4.57, -74.3], radius: 2600000 },
-  '義大利、希臘': { center: [40.75, 17.25], radius: 450000 },
-  '雅典；羅馬': { center: [40.75, 17.25], radius: 450000 },
-  '沙烏地阿拉伯': { center: [23.89, 45.08], radius: 900000 }
+  '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 }
 };
 
 
@@ -221,9 +217,10 @@ function parseVideos(videoString) {
 function parseImages(imageString) {
   if (!imageString) return [];
   return imageString.split(/[；;]/)
-    .map(img => img.trim())
-    .filter(img => img);
+    .map(img => (img || '').trim())
+    .filter(url => !!url);
 }
+
 
 function generatePanelContent(row, year) {
   // 只返回基本資訊，詳細內容等展開時再處理
@@ -551,20 +548,6 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
-// === PATCH (EE→MN ellipse setup): 將「東歐至蒙古」事件定位到哈薩克幾何中心（座標），避免落入預設區域 ===
-(function(){
-  try {
-    var loc = (row && row['地區']) ? String(row['地區']).trim() : '';
-    if (loc === '東歐至蒙古') {
-      // 哈薩克近似幾何中心（緯度、經度）
-      var northShiftDeg = 150000 / 111320;
-      var _latEE = 48.0 + northShiftDeg;
-      event.coords = [_latEE, 67.0];
-      event.region = undefined; // 以座標為主，避免被區域分組接手
-    }
-  } catch(e) { console.warn(e); }
-})();
-
 
 // === PATCH: Force '台灣桃園/臺灣桃園' to use Taipei marker ===
 (function(){
@@ -1480,56 +1463,41 @@ locationGroups.forEach((locationEvents, locationKey) => {
           });
         });
         createdCircles++;
-        // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
+        // === PATCH: 額外圓（美國、澳洲）— 觸發條件：事件名為「美國、紐澳如何躍升 牛肉產量大宗？」 ===
         try {
           if (Array.isArray(locationEvents) &&
-              locationEvents.some(function(ev){
-                var n = ev && ev.name;
-                var r = ev && ev.region;
-                return (n === '遊牧民族的飲食文化') || (typeof r === 'string' && r.indexOf('東歐') !== -1 && r.indexOf('蒙古') !== -1);
-              })) {
+              locationEvents.some(function(ev){ return ev && ev.name === '美國、紐澳如何躍升 牛肉產量大宗？'; })) {
 
-            // 清除舊的走廊（避免跨年份殘留）
-            if (map && typeof map.eachLayer === 'function') {
+            // 安全清理上一輪的額外圈，避免疊加
+            if (typeof map !== 'undefined' && map.eachLayer) {
               map.eachLayer(function(layer){
                 try {
-                  if (layer && layer.options && layer.options.className === 'corridor-ee-mn') {
+                  if (layer && layer.options && layer.options.className === 'ukusau-extra') {
                     if (map.hasLayer(layer)) map.removeLayer(layer);
                   }
                 } catch(e) {}
               });
             }
 
-            var eastEurope = [50.0, 25.0];
-            var mongolia = (regionCircles && regionCircles['蒙古'] && regionCircles['蒙古'].center) || [46.0, 103.0];
+            var us = regionCircles['美國'] || { center: [39.8, -98.6], radius: 800000 };
+            var au = regionCircles['澳洲'] || { center: [-25.3, 133.8], radius: 800000 };
 
-            // 折線：清晰呈現「從東歐到蒙古」
-            L.polyline([eastEurope, mongolia], {
-              color: '#1d4ed8',
-              weight: 4,
-              opacity: 0.9,
-              className: 'corridor-ee-mn'
-            }).addTo(map);
-
-            // 兩端淡圈：端點聚焦
-            var endRadius = 550000;
-            [eastEurope, mongolia].forEach(function(pt){
-              L.circle(pt, {
-                radius: endRadius,
-                color: '#1d4ed8',
-                fillColor: '#93c5fd',
-                fillOpacity: 0.28,
+            [us, au].forEach(function(regx){
+              if (!regx || !regx.center || !regx.radius) return;
+              L.circle(regx.center, {
+                radius: regx.radius,
+                color: '#3b82f6',
+                fillColor: '#dbeafe',
+                fillOpacity: 0.25,
                 weight: 2.5,
                 stroke: true,
                 interactive: false,
-                className: 'corridor-ee-mn'
+                className: 'ukusau-extra'
               }).addTo(map);
             });
           }
-        } catch (e) {
-          console.warn('Plan C corridor draw error', e);
-        }
-        // === END PATCH (Plan C) ===
+        } catch(e) { console.warn('ukusau-extra draw error', e); }
+        // === END PATCH ===
 
       }
     }
@@ -1580,30 +1548,18 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
-  // 清除舊的「東歐至蒙古」橢圓圖層（只清這個類別，不影響其他）
+  // 清理「美國、澳洲額外圈」圖層（只清此類，不影響其他）
   try {
     if (typeof map !== 'undefined' && map.eachLayer) {
       map.eachLayer(function(layer){
         try {
-          if (layer && layer.options && layer.options.className === 'ee-ellipse') {
+          if (layer && layer.options && layer.options.className === 'ukusau-extra') {
             if (map.hasLayer(layer)) map.removeLayer(layer);
           }
         } catch(e) {}
       });
     }
-  } catch (e) { console.warn('ee-ellipse cleanup error', e); }
-  // 清除走廊殘留（Plan C 專用，其他圖層不動）
-  try {
-    if (typeof map !== 'undefined' && map.eachLayer) {
-      map.eachLayer(function(layer){
-        try {
-          if (layer && layer.options && layer.options.className === 'corridor-ee-mn') {
-            if (map.hasLayer(layer)) map.removeLayer(layer);
-          }
-        } catch(e) {}
-      });
-    }
-  } catch (e) { console.warn('corridor cleanup error', e); }
+  } catch (e) { console.warn('ukusau-extra cleanup error', e); }
   console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
@@ -1648,54 +1604,6 @@ function updateVisibleEvents() {
   panel.classList.remove('visible');
 
   // 結尾同步絲路顯示（只在 year=0 顯示）
-
-  // === PATCH (EE→MN ellipse draw): 若該事件在目前篩選中可見，於哈薩克中心畫橢圓 ===
-  try {
-    var eeVisible = events.some(function(ev){
-      return ev && ev.time === currentYear && selectedSections.includes(ev.section) &&
-             (ev.name === '遊牧民族的飲食文化' || 
-              (typeof ev.region === 'string' && ev.region.indexOf('東歐') !== -1 && ev.region.indexOf('蒙古') !== -1));
-    });
-    if (eeVisible && typeof L !== 'undefined') {
-      var northShiftDeg = 150000 / 111320;
-      var center = [48.0 + northShiftDeg, 67.0]; // 哈薩克近似幾何中心
-      var rx = 2700000; // 橫軸（公尺）
-      var ry = 750000; // 縱軸（公尺）
-      var rotate = 0;  // 旋轉角度（度）
-      var steps = 96;
-
-      function metersToDegrees(lat, dx, dy) {
-        var latRad = lat * Math.PI / 180;
-        var degLat = dy / 111320;
-        var degLng = dx / (111320 * Math.cos(latRad) || 1);
-        return [degLat, degLng];
-      }
-
-      var pts = [];
-      for (var i = 0; i < steps; i++) {
-        var theta = (i / steps) * 2 * Math.PI;
-        var x = rx * Math.cos(theta);
-        var y = ry * Math.sin(theta);
-        if (rotate) {
-          var rot = rotate * Math.PI / 180;
-          var xr = x * Math.cos(rot) - y * Math.sin(rot);
-          var yr = x * Math.sin(rot) + y * Math.cos(rot);
-          x = xr; y = yr;
-        }
-        var offsets = metersToDegrees(center[0], x, y);
-        pts.push([center[0] + offsets[0], center[1] + offsets[1]]);
-      }
-
-      L.polygon(pts, {
-        color: '#1d4ed8',
-        weight: 2,
-        fillColor: '#93c5fd',
-        fillOpacity: 0.25,
-        className: 'ee-ellipse',
-        interactive: false
-      }).addTo(map);
-    }
-  } catch (e) { console.warn('ee-ellipse draw error', e); }
 }
 
   // 章節選擇器事件
