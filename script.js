@@ -1,3 +1,6 @@
+
+// Global toggle: render arrow heads (triangles)
+const SHOW_ARROWS = false;
 const regionCircles = {
   '歐洲(西歐)': { center: [48, 5], radius: 700000 },
   '歐洲(中歐)': { center: [51, 15], radius: 650000 },
@@ -1772,7 +1775,8 @@ try {
         opacity: 0.9,
         className: 'beef-arrow'
       }).addTo(map);
-      // 可選：終點箭頭
+      if (SHOW_ARROWS) {
+// 可選：終點箭頭
       const deg = Math.atan2(ar.to[1]-ar.from[1], ar.to[0]-ar.from[0]) * 180/Math.PI;
       const head = L.divIcon({
         className: 'beef-arrow-head',
@@ -1780,7 +1784,8 @@ try {
         iconSize: [0,0], iconAnchor: [0,0]
       });
       L.marker(ar.to, { icon: head, interactive:false }).addTo(map);
-    });
+    }
+});
   }
 } catch(e) { console.warn('beef-arrow draw error', e); }
 }
