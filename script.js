@@ -799,37 +799,28 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
 })();
 // === END PATCH ===
 
-    // === PATCH (2025-09-09): A) 內華達定位；B) 牛肉三角不畫區域圈（標記 __noArea） ===
+    // === PATCH (2025-09-09): 取消 1700 年「英國」的區域半徑 ===
 (function () {
   try {
     if (!Array.isArray(events)) return;
-    var NV_CENTER = [39.5152, -116.8537];
-    var changedA = 0, changedB = 0;
-    // A) 內華達中心
+    var changed = 0;
     for (var i = 0; i < events.length; i++) {
       var ev = events[i];
       if (!ev) continue;
-      if (ev.time === 1700 && ev.name === '美國西部畜牧業興起' && ev.region === '美國') {
-        ev.coords = NV_CENTER;
-        if (ev.region) delete ev.region; // 避免落回區域圈
-        ev.labelOnly = false;
-        changedA++;
+      if (ev.time === 1700 && ev.region === '英國') { // 一字不差的地區名
+        ev.__noArea = true;          // 給渲染層識別，不畫區域圈
+        if ('radius' in ev) ev.radius = 0;         // 安全中和（若有使用）
+        if ('radius_km' in ev) ev.radius_km = 0;
+        if ('radiusKm' in ev) ev.radiusKm = 0;
+        changed++;
       }
     }
-    // B) 牛肉三角：英國 / 美國 / 澳洲 -> __noArea=true
-    var REGIONS = new Set(['英國', '美國', '澳洲']);
-    for (var j = 0; j < events.length; j++) {
-      var e2 = events[j];
-      if (!e2) continue;
-      if (e2.time === 1700 && e2.name === '美國、紐澳如何躍升牛肉產量大宗？' && REGIONS.has(e2.region)) {
-        e2.__noArea = true;
-        // 不改 region / coords，讓既有點/聚合照常；只影響區域圈邏輯
-        changedB++;
-      }
-    }
-    if (changedA) console.log('✅ A) 內華達中心補丁完成');
-    if (changedB) console.log('✅ B) 牛肉三角標記 __noArea 完成');
-  } catch (e) { console.warn('PATCH IIFE 執行失敗：', e); }
+    console.log(changed > 0
+      ? '✅ 已標記 1700/英國 事件為 __noArea，取消區域半徑'
+      : 'ℹ️ 未找到 1700/英國 事件可供取消半徑');
+  } catch (e) {
+    console.warn('PATCH 英國 1700 取消半徑失敗：', e);
+  }
 })();
 // === END PATCH (2025-09-09) ===
 
