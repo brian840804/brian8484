@@ -799,28 +799,41 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
 })();
 // === END PATCH ===
 
-    // === PATCH (2025-09-09): Cancel radius for 1700「美國、紐澳如何躍升牛肉產量大宗？」 in 英國/美國/澳洲 ===
+    // === PATCH (2025-09-09): A) 內華達定位；B) 牛肉三角區域關閉面積圈 ===
 (function () {
   try {
     if (!Array.isArray(events)) return;
-    var REGIONS = new Set(['英國', '美國', '澳洲']); // exact match only
-    var changed = 0;
+    var changedA = 0, changedB = 0;
+
+    // A) 1700「美國西部畜牧業興起」-> 內華達州幾何中心（改用精確點，移除 region 以避免畫區域圈）
+    var NV_CENTER = [39.5152, -116.8537];
     for (var i = 0; i < events.length; i++) {
       var ev = events[i];
       if (!ev) continue;
-      if (ev.time === 1700 && ev.name === '美國、紐澳如何躍升牛肉產量大宗？' && REGIONS.has(ev.region)) {
-        // Minimal change: neutralize any radius-like fields without touching other logic.
-        if ('radius' in ev) { ev.radius = 0; }
-        if ('radius_km' in ev) { ev.radius_km = 0; }
-        if ('radiusKm' in ev) { ev.radiusKm = 0; }
-        changed++;
+      if (ev.time === 1700 && ev.name === '美國西部畜牧業興起' && ev.region === '美國') {
+        ev.coords = NV_CENTER;
+        if (ev.region) delete ev.region;
+        ev.labelOnly = false;
+        changedA++;
       }
     }
-    console.log(changed > 0
-      ? '✅ 已取消 1700「美國、紐澳如何躍升牛肉產量大宗？」(英國/美國/澳洲) 的半徑'
-      : 'ℹ️ 未找到需取消半徑之事件：1700「美國、紐澳如何躍升牛肉產量大宗？」');
+
+    // B) 1700「美國、紐澳如何躍升牛肉產量大宗？」在英國/美國/澳洲 -> 標記 __noArea=true（後續渲染會跳過整組面積圈）
+    var REGIONS = new Set(['英國', '美國', '澳洲']);
+    for (var j = 0; j < events.length; j++) {
+      var e2 = events[j];
+      if (!e2) continue;
+      if (e2.time === 1700 && e2.name === '美國、紐澳如何躍升牛肉產量大宗？' && REGIONS.has(e2.region)) {
+        e2.__noArea = true;
+        changedB++;
+      }
+    }
+
+    if (changedA) console.log('✅ A) 已定位「美國西部畜牧業興起」至內華達中心並取消區域圈');
+    if (changedB) console.log('✅ B) 已標記牛肉三角事件 __noArea=true（將跳過面積圈）');
+    if (!changedA && !changedB) console.log('ℹ️ 無目標事件需要修正（A/B）');
   } catch (e) {
-    console.warn('PATCH 取消 radius 失敗：', e);
+    console.warn('PATCH A/B 失敗：', e);
   }
 })();
 // === END PATCH (2025-09-09) ===
@@ -1529,22 +1542,27 @@ locationGroups.forEach((locationEvents, locationKey) => {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      // 為區域事件添加圓形
-      if (coords && regionCircles[regionName]) {
-        const reg = regionCircles[regionName];
-        locationEvents.forEach(ev => {
-          ev.areaLayer = L.circle(reg.center, {
-            radius: reg.radius,
-            color: '#3b82f6',
-            fillColor: '#dbeafe',
-            fillOpacity: 0.25,
-            weight: 2.5,
-            stroke: true,
-            interactive: false,
-            className: 'region-circle'
-          });
-        });
-        createdCircles++;
+      // 為區域事件添加圓形（若整組事件皆標記 __noArea，則跳過）
+if (coords && regionCircles[regionName]) {
+  var __skipAreaAll = Array.isArray(locationEvents) && locationEvents.length > 0 &&
+                      locationEvents.every(function(ev){ return ev && ev.__noArea === true; });
+  if (!__skipAreaAll) {
+    const reg = regionCircles[regionName];
+    locationEvents.forEach(ev => {
+      ev.areaLayer = L.circle(reg.center, {
+        radius: reg.radius,
+        color: '#3b82f6',
+        fillColor: '#dbeafe',
+        fillOpacity: 0.25,
+        weight: 2.5,
+        stroke: true,
+        interactive: false,
+        className: 'region-circle'
+      });
+    });
+    createdCircles++;
+  }
+}
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
           if (Array.isArray(locationEvents) &&
