@@ -1506,73 +1506,70 @@ locationGroups.forEach((locationEvents, locationKey) => {
       // 為區域事件添加圓形
       if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
-        const is1700 = Number(currentYear) === 1700;
-const isUKUSAU = (regionName === '英國' || regionName === '美國' || regionName === '澳洲');
-
-locationEvents.forEach(ev => {
-  if (is1700 && isUKUSAU) return;  // 只在 1700 的英/美/澳跳過建立圓圈
-  ev.areaLayer = L.circle(reg.center, {
-    radius: reg.radius,
-    color: '#3b82f6',
-    fillColor: '#dbeafe',
-    fillOpacity: 0.25,
-    weight: 2.5,
-    stroke: true,
-    interactive: false,
-    className: 'region-circle'
-  });
-}););
+        locationEvents.forEach(ev => {
+          ev.areaLayer = L.circle(reg.center, {
+            radius: reg.radius,
+            color: '#3b82f6',
+            fillColor: '#dbeafe',
+            fillOpacity: 0.25,
+            weight: 2.5,
+            stroke: true,
+            interactive: false,
+            className: 'region-circle'
+          });
+        });
         createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
-        try {
-          if (Array.isArray(locationEvents) &&
-              locationEvents.some(function(ev){
-                var n = ev && ev.name;
-                var r = ev && ev.region;
-                return (n === '遊牧民族的飲食文化') || (typeof r === 'string' && r.indexOf('東歐') !== -1 && r.indexOf('蒙古') !== -1);
-              })) {
+try {
+  if (Array.isArray(locationEvents) &&
+      locationEvents.some(function(ev){
+        var n = ev && ev.name;
+        var r = ev && ev.region;
+        return (n === '遊牧民族的飲食文化') ||
+               (typeof r === 'string' && r.indexOf('東歐') !== -1 && r.indexOf('蒙古') !== -1);
+      })) {
 
-            // 清除舊的走廊（避免跨年份殘留）
-            if (map && typeof map.eachLayer === 'function') {
-              map.eachLayer(function(layer){
-                try {
-                  if (layer && layer.options && layer.options.className === 'corridor-ee-mn') {
-                    if (map.hasLayer(layer)) map.removeLayer(layer);
-                  }
-                } catch(e) {}
-              });
-            }
+    // 清除舊的走廊（避免跨年份殘留）
+   if (map && typeof map.eachLayer === 'function') {
+     map.eachLayer(function(layer){
+       try {
+         if (layer && layer.options && layer.options.className === 'corridor-ee-mn') {
+           if (map.hasLayer(layer)) map.removeLayer(layer);
+         }
+       } catch(e) {}
+     });
+   }
 
-            var eastEurope = [50.0, 25.0];
-            var mongolia = (regionCircles && regionCircles['蒙古'] && regionCircles['蒙古'].center) || [46.0, 103.0];
+    var eastEurope = [50.0, 25.0];
+    var mongolia = (regionCircles && regionCircles['蒙古'] && regionCircles['蒙古'].center) || [46.0, 103.0];
 
-            // 折線：清晰呈現「從東歐到蒙古」
-            L.polyline([eastEurope, mongolia], {
-              color: '#1d4ed8',
-              weight: 4,
-              opacity: 0.9,
-              className: 'corridor-ee-mn'
-            }).addTo(map);
+    // 主線
+    L.polyline([eastEurope, mongolia], {
+      color: '#1d4ed8',
+      weight: 4,
+      opacity: 0.9,
+      className: 'corridor-ee-mn'
+    }).addTo(map);
 
-            // 兩端淡圈：端點聚焦
-            var endRadius = 550000;
-            [eastEurope, mongolia].forEach(function(pt){
-              L.circle(pt, {
-                radius: endRadius,
-                color: '#1d4ed8',
-                fillColor: '#93c5fd',
-                fillOpacity: 0.28,
-                weight: 2.5,
-                stroke: true,
-                interactive: false,
-                className: 'corridor-ee-mn'
-              }).addTo(map);
-            });
-          }
-        } catch (e) {
-          console.warn('Plan C corridor draw error', e);
-        }
-        // === END PATCH (Plan C) ===
+    // 兩端淡圈
+    var endRadius = 550000;
+    [eastEurope, mongolia].forEach(function(pt){
+      L.circle(pt, {
+        radius: endRadius,
+        color: '#1d4ed8',
+        fillColor: '#93c5fd',
+        fillOpacity: 0.28,
+        weight: 2.5,
+        stroke: true,
+        interactive: false,
+        className: 'corridor-ee-mn'
+      }).addTo(map);
+    });
+  }
+} catch (e) {
+  console.warn('Plan C corridor draw error', e);
+}
+// === END PATCH (Plan C) ===
 
       }
     }
