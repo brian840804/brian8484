@@ -659,7 +659,7 @@ let __skipDefaultPlacement = false;
   try {
     var _name = (event && event.name) ? String(event.name).trim() : '';
     var _year = (typeof year !== 'undefined') ? year : null;
-    if (_name === '美國、紐澳如何躍升牛肉產量大宗？' && _year === 1700) {
+    if (false /* disabled: default Excel flow */ && _name === '美國、紐澳如何躍升牛肉產量大宗？' && _year === 1700) {
       if (!window.__EXTRA_ARROWS__) window.__EXTRA_ARROWS__ = [];
       if (typeof regionCircles !== 'undefined') {
         ['英國','美國','澳洲'].forEach(function(k){
@@ -798,31 +798,6 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
   }
 })();
 // === END PATCH ===
-
-    // === PATCH (2025-09-09): Position "美國西部畜牧業興起" (1700, 美國) at Nevada geometric center ===
-(function () {
-  try {
-    if (!Array.isArray(events)) return;
-    var NV_CENTER = [39.5152, -116.8537]; // Nevada geometric center (approx.)
-    var changed = 0;
-    for (var i = 0; i < events.length; i++) {
-      var ev = events[i];
-      if (!ev) continue;
-      if (ev.time === 1700 && ev.name === '美國西部畜牧業興起' && (ev.region === '美國' || !ev.coords)) {
-        ev.coords = NV_CENTER;           // use precise point
-        if (ev.region) delete ev.region; // avoid area-circle fallback
-        ev.labelOnly = false;
-        changed++;
-      }
-    }
-    console.log(changed > 0
-      ? '✅ 已定位「美國西部畜牧業興起」至內華達州幾何中心'
-      : 'ℹ️ 未找到需定位之事件：美國西部畜牧業興起 (1700, 美國)');
-  } catch (e) {
-    console.warn('PATCH 內華達中心定位失敗：', e);
-  }
-})();
-// === END PATCH (2025-09-09) ===
 
     console.log(`📊 處理統計:`);
     console.log(`   總共處理: ${totalProcessed} 筆資料`);
