@@ -799,27 +799,28 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
 })();
 // === END PATCH ===
 
-    // === PATCH (2025-09-09): Position "美國西部畜牧業興起" (1700, 美國) at Nevada geometric center ===
+    // === PATCH (2025-09-09): Cancel radius for 1700「美國、紐澳如何躍升牛肉產量大宗？」 in 英國/美國/澳洲 ===
 (function () {
   try {
     if (!Array.isArray(events)) return;
-    var NV_CENTER = [39.5152, -116.8537]; // Nevada geometric center (approx.)
+    var REGIONS = new Set(['英國', '美國', '澳洲']); // exact match only
     var changed = 0;
     for (var i = 0; i < events.length; i++) {
       var ev = events[i];
       if (!ev) continue;
-      if (ev.time === 1700 && ev.name === '美國西部畜牧業興起' && (ev.region === '美國' || !ev.coords)) {
-        ev.coords = NV_CENTER;           // use precise point
-        if (ev.region) delete ev.region; // avoid area-circle fallback
-        ev.labelOnly = false;
+      if (ev.time === 1700 && ev.name === '美國、紐澳如何躍升牛肉產量大宗？' && REGIONS.has(ev.region)) {
+        // Minimal change: neutralize any radius-like fields without touching other logic.
+        if ('radius' in ev) { ev.radius = 0; }
+        if ('radius_km' in ev) { ev.radius_km = 0; }
+        if ('radiusKm' in ev) { ev.radiusKm = 0; }
         changed++;
       }
     }
     console.log(changed > 0
-      ? '✅ 已定位「美國西部畜牧業興起」至內華達州幾何中心'
-      : 'ℹ️ 未找到需定位之事件：美國西部畜牧業興起 (1700, 美國)');
+      ? '✅ 已取消 1700「美國、紐澳如何躍升牛肉產量大宗？」(英國/美國/澳洲) 的半徑'
+      : 'ℹ️ 未找到需取消半徑之事件：1700「美國、紐澳如何躍升牛肉產量大宗？」');
   } catch (e) {
-    console.warn('PATCH 內華達中心定位失敗：', e);
+    console.warn('PATCH 取消 radius 失敗：', e);
   }
 })();
 // === END PATCH (2025-09-09) ===
