@@ -799,27 +799,27 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
 })();
 // === END PATCH ===
 
-    // === PATCH (2025-09-09): 取消 1700 年「英國」的區域半徑 ===
+    // === PATCH (2025-09-09): Position "美國西部畜牧業興起" (1700, 美國) at Nevada geometric center ===
 (function () {
   try {
     if (!Array.isArray(events)) return;
+    var NV_CENTER = [39.5152, -116.8537]; // Nevada geometric center (approx.)
     var changed = 0;
     for (var i = 0; i < events.length; i++) {
       var ev = events[i];
       if (!ev) continue;
-      if (ev.time === 1700 && ev.region === '英國') { // 一字不差的地區名
-        ev.__noArea = true;          // 給渲染層識別，不畫區域圈
-        if ('radius' in ev) ev.radius = 0;         // 安全中和（若有使用）
-        if ('radius_km' in ev) ev.radius_km = 0;
-        if ('radiusKm' in ev) ev.radiusKm = 0;
+      if (ev.time === 1700 && ev.name === '美國西部畜牧業興起' && (ev.region === '美國' || !ev.coords)) {
+        ev.coords = NV_CENTER;           // use precise point
+        if (ev.region) delete ev.region; // avoid area-circle fallback
+        ev.labelOnly = false;
         changed++;
       }
     }
     console.log(changed > 0
-      ? '✅ 已標記 1700/英國 事件為 __noArea，取消區域半徑'
-      : 'ℹ️ 未找到 1700/英國 事件可供取消半徑');
+      ? '✅ 已定位「美國西部畜牧業興起」至內華達州幾何中心'
+      : 'ℹ️ 未找到需定位之事件：美國西部畜牧業興起 (1700, 美國)');
   } catch (e) {
-    console.warn('PATCH 英國 1700 取消半徑失敗：', e);
+    console.warn('PATCH 內華達中心定位失敗：', e);
   }
 })();
 // === END PATCH (2025-09-09) ===
@@ -1528,10 +1528,8 @@ locationGroups.forEach((locationEvents, locationKey) => {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      // 為區域事件添加圓形（若整組事件皆標記 __noArea，則跳過）
-      var __skipAreaAll = Array.isArray(locationEvents) && locationEvents.length > 0 &&
-                          locationEvents.every(function(ev){ return ev && ev.__noArea === true; });
-      if (coords && regionCircles[regionName] && !__skipAreaAll) {
+      // 為區域事件添加圓形
+      if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
         locationEvents.forEach(ev => {
           ev.areaLayer = L.circle(reg.center, {
