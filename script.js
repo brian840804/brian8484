@@ -1509,20 +1509,22 @@ locationGroups.forEach((locationEvents, locationKey) => {
       // 為區域事件添加圓形
       if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
-        if (!(currentYear === 1700 && (regionName === '英國' || regionName === '美國' || regionName === '澳洲'))) {
+        const is1700 = Number(currentYear) === 1700;
+const isUKUSAU = (regionName === '英國' || regionName === '美國' || regionName === '澳洲');
+
 locationEvents.forEach(ev => {
-          ev.areaLayer = L.circle(reg.center, {
-            radius: reg.radius,
-            color: '#3b82f6',
-            fillColor: '#dbeafe',
-            fillOpacity: 0.25,
-            weight: 2.5,
-            stroke: true,
-            interactive: false,
-            className: 'region-circle'
-          });
-        });
-}
+  if (is1700 && isUKUSAU) return;  // 只在 1700 的英/美/澳跳過建立圓圈
+  ev.areaLayer = L.circle(reg.center, {
+    radius: reg.radius,
+    color: '#3b82f6',
+    fillColor: '#dbeafe',
+    fillOpacity: 0.25,
+    weight: 2.5,
+    stroke: true,
+    interactive: false,
+    className: 'region-circle'
+  });
+});
         createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
