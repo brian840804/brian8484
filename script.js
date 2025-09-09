@@ -651,6 +651,39 @@ let __skipDefaultPlacement = false;
   }
 })();
 // === END PATCH v12 ===
+// === SPECIAL CASE (beef-triad 1700): 英國→美國、澳洲（三圓＋兩箭頭＋中心點） ===
+(function(){
+  try {
+    var _name = (event && event.name) ? String(event.name).trim() : '';
+    var _year = (typeof year !== 'undefined') ? year : null;
+    if (_name === '美國、紐澳如何躍升 牛肉產量大宗？' && _year === 1700) {
+      // 三個圓：英國、美國、澳洲
+      if (typeof regionCircles !== 'undefined') {
+        var tri = ['英國','美國','澳洲'];
+        tri.forEach(function(key){
+          if (regionCircles[key]) {
+            var evCircle = { ...event, coords: undefined, region: key, __beefTriad: true };
+            events.push(evCircle); successfulEvents++;
+          }
+        });
+        // 兩個中心標點（美國、澳洲）
+        var usC = regionCircles['美國'] && regionCircles['美國'].center;
+        var auC = regionCircles['澳洲'] && regionCircles['澳洲'].center;
+        if (usC) { events.push({ ...event, coords: usC, region: undefined, __beefTriad: true, __centerDot: 'US' }); successfulEvents++; }
+        if (auC) { events.push({ ...event, coords: auC, region: undefined, __beefTriad: true, __centerDot: 'AU' }); successfulEvents++; }
+        // 兩條箭頭（英國 → 美國、澳洲）
+        var ukC = regionCircles['英國'] && regionCircles['英國'].center;
+        if (!window.__EXTRA_ARROWS__) window.__EXTRA_ARROWS__ = [];
+        if (ukC && usC) window.__EXTRA_ARROWS__.push({ from: ukC, to: usC, tag: 'UK2US' });
+        if (ukC && auC) window.__EXTRA_ARROWS__.push({ from: ukC, to: auC, tag: 'UK2AU' });
+      }
+      __skipDefaultPlacement = true; // 跳過預設定位流程
+    }
+  } catch (e) { console.warn('beef-triad special case error:', e); }
+})();
+// === END SPECIAL CASE ===
+
+
 
 
 
@@ -888,6 +921,37 @@ loadingManager.nextStage();
         return !excludeCountries.includes(feature.properties.NAME);
       }
     }).addTo(map);
+// === EXTRA OVERLAY RENDER (arrows with heads) ===
+(function(){
+  try {
+    // inject minimal CSS for arrowhead if needed (divIcon uses inline styles, so optional)
+    function bearing(a, b) {
+      // approximate planar bearing for small deltas
+      var y = (b[1] - a[1]);
+      var x = (b[0] - a[0]);
+      return Math.atan2(y, x); // radians
+    }
+    function drawArrow(from, to) {
+      if (!Array.isArray(from) || !Array.isArray(to)) return;
+      var line = L.polyline([from, to], { weight: 2.5, opacity: 0.9 }).addTo(map);
+      // Arrow head as a rotated div
+      var ang = bearing(from, to);
+      var deg = (ang * 180 / Math.PI);
+      var head = L.divIcon({
+        className: 'arrow-head-icon',
+        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:12px solid black;transform: rotate(' + deg + 'deg); transform-origin: 50% 80%;"></div>',
+        iconSize: [0, 0],
+        iconAnchor: [0, 0]
+      });
+      L.marker(to, { icon: head, interactive: false }).addTo(map);
+    }
+    if (Array.isArray(window.__EXTRA_ARROWS__) && window.__EXTRA_ARROWS__.length) {
+      window.__EXTRA_ARROWS__.forEach(function(ar){ drawArrow(ar.from, ar.to); });
+    }
+  } catch(e) { console.warn('draw arrows failed', e); }
+})();
+// === END EXTRA OVERLAY RENDER ===
+
 
     // 添加極地區域
     L.rectangle([[-90, -180], [-60, 180]], { fillColor: '#a0cfff', fillOpacity: 1.0, weight: 0 }).addTo(map);
