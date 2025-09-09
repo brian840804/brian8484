@@ -1,6 +1,3 @@
-
-// Global toggle for arrow heads
-const SHOW_ARROWS = false;
 const regionCircles = {
   '歐洲(西歐)': { center: [48, 5], radius: 700000 },
   '歐洲(中歐)': { center: [51, 15], radius: 650000 },
@@ -802,6 +799,31 @@ console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座�
 })();
 // === END PATCH ===
 
+    // === PATCH (2025-09-09): Position "美國西部畜牧業興起" (1700, 美國) at Nevada geometric center ===
+(function () {
+  try {
+    if (!Array.isArray(events)) return;
+    var NV_CENTER = [39.5152, -116.8537]; // Nevada geometric center (approx.)
+    var changed = 0;
+    for (var i = 0; i < events.length; i++) {
+      var ev = events[i];
+      if (!ev) continue;
+      if (ev.time === 1700 && ev.name === '美國西部畜牧業興起' && (ev.region === '美國' || !ev.coords)) {
+        ev.coords = NV_CENTER;           // use precise point
+        if (ev.region) delete ev.region; // avoid area-circle fallback
+        ev.labelOnly = false;
+        changed++;
+      }
+    }
+    console.log(changed > 0
+      ? '✅ 已定位「美國西部畜牧業興起」至內華達州幾何中心'
+      : 'ℹ️ 未找到需定位之事件：美國西部畜牧業興起 (1700, 美國)');
+  } catch (e) {
+    console.warn('PATCH 內華達中心定位失敗：', e);
+  }
+})();
+// === END PATCH (2025-09-09) ===
+
     console.log(`📊 處理統計:`);
     console.log(`   總共處理: ${totalProcessed} 筆資料`);
     console.log(`   成功載入: ${successfulEvents} 個事件`);
@@ -1509,23 +1531,19 @@ locationGroups.forEach((locationEvents, locationKey) => {
       // 為區域事件添加圓形
       if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
-        const is1700 = Number(currentYear) === 1700;
-const isUKUSAU = (regionName === '英國' || regionName === '美國' || regionName === '澳洲');
-
-locationEvents.forEach(ev => {
-  if (is1700 && isUKUSAU) return;  // 只在 1700 的英/美/澳跳過建立圓圈
-  ev.areaLayer = L.circle(reg.center, {
-    radius: reg.radius,
-    color: '#3b82f6',
-    fillColor: '#dbeafe',
-    fillOpacity: 0.25,
-    weight: 2.5,
-    stroke: true,
-    interactive: false,
-    className: 'region-circle'
-  });
-});
-createdCircles++;
+        locationEvents.forEach(ev => {
+          ev.areaLayer = L.circle(reg.center, {
+            radius: reg.radius,
+            color: '#3b82f6',
+            fillColor: '#dbeafe',
+            fillOpacity: 0.25,
+            weight: 2.5,
+            stroke: true,
+            interactive: false,
+            className: 'region-circle'
+          });
+        });
+        createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
           if (Array.isArray(locationEvents) &&
