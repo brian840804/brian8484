@@ -839,6 +839,13 @@ loadingManager.nextStage();
   const initialCenter = [20, 0];
   const initialZoom = 3;
 const map = L.map('map', {
+
+try {
+  if (!map.getPane('beefPane')) {
+    map.createPane('beefPane');
+    map.getPane('beefPane').style.zIndex = 650;
+  }
+} catch(e) { console.warn('beefPane create error', e); }
   maxBounds: [[-60, -180], [75, 180]],
   maxBoundsViscosity: 1,
   minZoom: 3,
@@ -1618,6 +1625,18 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
+
+// 清除牛肉箭頭殘留（只清這個類別）
+try {
+  if (typeof map !== 'undefined' && map.eachLayer) {
+    const toRemove = [];
+    map.eachLayer(l => { try {
+      if (l && l.options && l.options.className === 'beef-arrow') toRemove.push(l);
+    } catch(e){} });
+    toRemove.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+  }
+} catch (e) { console.warn('beef-arrow cleanup error', e); }
+
   // 清除舊的「東歐至蒙古」橢圓圖層（只清這個類別，不影響其他）
   try {
     if (typeof map !== 'undefined' && map.eachLayer) {
@@ -1642,6 +1661,17 @@ function updateVisibleEvents() {
       });
     }
   } catch (e) { console.warn('corridor cleanup error', e); }
+
+// 清除牛肉箭頭殘留（只清這個類別）
+try {
+  if (typeof map !== 'undefined' && map.eachLayer) {
+    const toRemove = [];
+    map.eachLayer(l => { try {
+      if (l && l.options && l.options.className === 'beef-arrow') toRemove.push(l);
+    } catch(e){} });
+    toRemove.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
+  }
+} catch (e) { console.warn('beef-arrow cleanup error', e); }
   console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
@@ -1721,7 +1751,30 @@ function updateVisibleEvents() {
           x = xr; y = yr;
         }
         var offsets = metersToDegrees(center[0], x, y);
-        pts.push([center[0] + offsets[0], center[1] + offsets[1]]);
+        pts.push([center[0] + offsets[0], center[1
+
+try {
+  if (currentYear === 1700 && Array.isArray(window.__EXTRA_ARROWS__) && window.__EXTRA_ARROWS__.length) {
+    window.__EXTRA_ARROWS__.forEach(ar => {
+      if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
+      L.polyline([ar.from, ar.to], {
+        color: '#1d4ed8',   // 和絲路相同色
+        weight: 4,
+        opacity: 0.9,
+        className: 'beef-arrow'
+      }).addTo(map);
+      // 箭頭頭部
+      const deg = Math.atan2(ar.to[1]-ar.from[1], ar.to[0]-ar.from[0]) * 180/Math.PI;
+      const head = L.divIcon({
+        className: 'beef-arrow-head',
+        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid #1d4ed8;transform: rotate('+deg+'deg);transform-origin:50% 80%;"></div>',
+        iconSize: [0,0], iconAnchor: [0,0]
+      });
+      L.marker(ar.to, { icon: head, interactive:false }).addTo(map);
+    });
+  }
+} catch(e) { console.warn('beef-arrow draw error', e); }
+] + offsets[1]]);
       }
 
       L.polygon(pts, {
@@ -1735,9 +1788,29 @@ function updateVisibleEvents() {
     }
   } catch (e) { console.warn('ee-ellipse draw error', e); }
 
-  try { if (typeof drawBeefArrows==='function') drawBeefArrows(); } catch(e) { console.warn('drawBeefArrows call failed', e); }
-
-  try { if (typeof drawBeefArrows==='function') drawBeefArrows(); } catch(e) {}
+  
+// 繪製牛肉箭頭（比照絲路折線風格）
+try {
+  if (currentYear === 1700 && Array.isArray(window.__EXTRA_ARROWS__) && window.__EXTRA_ARROWS__.length) {
+    window.__EXTRA_ARROWS__.forEach(ar => {
+      if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
+      L.polyline([ar.from, ar.to], {
+        color: '#1d4ed8',   // 和絲路相同色
+        weight: 4,
+        opacity: 0.9,
+        className: 'beef-arrow'
+      }).addTo(map);
+      // 可選：終點箭頭
+      const deg = Math.atan2(ar.to[1]-ar.from[1], ar.to[0]-ar.from[0]) * 180/Math.PI;
+      const head = L.divIcon({
+        className: 'beef-arrow-head',
+        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid #1d4ed8;transform: rotate('+deg+'deg);transform-origin:50% 80%;"></div>',
+        iconSize: [0,0], iconAnchor: [0,0]
+      });
+      L.marker(ar.to, { icon: head, interactive:false }).addTo(map);
+    });
+  }
+} catch(e) { console.warn('beef-arrow draw error', e); }
 }
 
   // 章節選擇器事件
@@ -2487,17 +2560,6 @@ window.showImageModal = showImageModal;
 
 
 // === drawBeefArrows: render UK→US/AU arrows after markers are drawn ===
-function drawBeefArrows() {
-  try {
-    if (!Array.isArray(window.__EXTRA_ARROWS__) || !window.__EXTRA_ARROWS__.length) return;
-    // cleanup existing beef arrows
-    if (typeof map !== 'undefined' && map.eachLayer) {
-      var toRemove = [];
-      map.eachLayer(function(layer){
-        try {
-          if (layer && layer.options && (layer.options.className === 'beef-arrow')) {
-            toRemove.push(layer);
-          }
         } catch(e){}
       });
       toRemove.forEach(function(l){ if (map.hasLayer(l)) map.removeLayer(l); });
@@ -2509,14 +2571,14 @@ function drawBeefArrows() {
     }
     window.__EXTRA_ARROWS__.forEach(function(ar){
       if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
-      L.polyline([ar.from, ar.to], { weight: 2.5, opacity: 0.9, className: 'beef-arrow' }).addTo(map);
+      L.polyline([ar.from, ar.to], {  weight: 2.5, opacity: 0.9, className: 'beef-arrow'  }).addTo(map);
       var deg = bearing(ar.from, ar.to) * 180 / Math.PI;
       var head = L.divIcon({
         className: 'beef-arrow-head',
         html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:12px solid black;transform: rotate(' + deg + 'deg); transform-origin: 50% 80%;"></div>',
         iconSize: [0,0], iconAnchor: [0,0]
       });
-      L.marker(ar.to, { icon: head, interactive: false }).addTo(map);
+      L.marker(ar.to, { icon: head, interactive: false   pane: 'beefPane' }).addTo(map);
     });
   } catch(e) { console.warn('drawBeefArrows failed', e); }
 }
