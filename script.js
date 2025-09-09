@@ -54,9 +54,10 @@ const regionCircles = {
   '澳洲': { center: [-25, 135], radius: 1000000 },
   '紐西蘭': { center: [-40, 175], radius: 300000 },
   '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 },
-  '中南美洲': { center: [4.57, -74.30], radius: 2600000 },
+  '中南美洲': { center: [4.57, -74.3], radius: 2600000 },
   '義大利、希臘': { center: [40.75, 17.25], radius: 450000 },
-  '雅典、羅馬': { center: [40.75, 17.25], radius: 450000 }
+  '雅典；羅馬': { center: [40.75, 17.25], radius: 450000 },
+  '沙烏地阿拉伯': { center: [23.89, 45.08], radius: 900000 }
 };
 
 
@@ -665,10 +666,6 @@ else {
     } else if (regionCircles[fuzzyMatch]) {
       event.region = fuzzyMatch;
     }
-  } else if ((row['地區'] || '').trim() === '東歐至蒙古') {
-    // 特例：避免落入中東預設；用『蒙古』作為定位（紅點仍可點），走廊另行繪製
-    event.region = '蒙古';
-    console.log('   🏷️ 特例處理：東歐至蒙古 → 蒙古（並繪製走廊）');
   } else {
     // 為未匹配地區添加預設位置
     event.region = row['地區'];
@@ -1469,8 +1466,6 @@ locationGroups.forEach((locationEvents, locationKey) => {
           });
         });
         createdCircles++;
-      
-
       }
     }
     
@@ -1483,10 +1478,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
   } catch (error) {
     console.error('創建標記時出錯:', error, locationEvents);
   }
-}
-
-
-);
+});
 
 console.log(`✅ 標記創建完成: ${createdMarkers} 個位置標記, ${createdCircles} 個區域標記`);
 
