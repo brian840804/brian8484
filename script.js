@@ -1524,6 +1524,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
       coords = regionCircles[regionName]?.center;
       
       
+// 為區域事件添加圓形...（原區塊如上）
 // 為區域事件添加圓形
       if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
@@ -1539,16 +1540,16 @@ locationGroups.forEach((locationEvents, locationKey) => {
             className: 'region-circle'
           });
         });
-        
-        // v16: 若為「中南美洲」，在中心建立紅色標點（保留圓圈）
+        createdCircles++;
+        // v17: 只針對「中南美洲」——在中心建立紅色標點（保留圓圈）
         if (regionName === '中南美洲' && coords) {
-          const firstEv = locationEvents[0];
-          if (firstEv && !firstEv.centerMarker) {
-            firstEv.centerMarker = L.marker(coords, {
+          const ev0 = locationEvents[0];
+          if (ev0 && !ev0.centerMarker) {
+            ev0.centerMarker = L.marker(coords, {
               icon: L.divIcon({
                 html: `<div class="custom-marker">
                          <div class="marker-pin"></div>
-                         <div class="marker-label">${firstEv.name}</div>
+                         <div class="marker-label">${ev0.name}</div>
                        </div>`,
                 className: 'custom-marker-container',
                 iconSize: [150, 20],
@@ -1557,7 +1558,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
             });
           }
         }
-createdCircles++;
+
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
           if (Array.isArray(locationEvents) &&
@@ -1719,7 +1720,8 @@ try {
     if (ev.displayMarker && map.hasLayer(ev.displayMarker)) map.removeLayer(ev.displayMarker);
     if (ev.areaLayer && map.hasLayer(ev.areaLayer)) map.removeLayer(ev.areaLayer);
   
-    if (ev.centerMarker && map.hasLayer(ev.centerMarker)) map.removeLayer(ev.centerMarker); // v16: 中南美洲中心紅點清除
+    if (ev.centerMarker && map.hasLayer(ev.centerMarker)) map.removeLayer(ev.centerMarker); // v17: 中南美洲中心紅點清除
+});
   
   // 重新創建並顯示當前時間的標記
   locationGroups.forEach((locationEvents, locationKey) => {
@@ -1738,7 +1740,7 @@ try {
       });
       
   
-      // v16: 顯示「中南美洲」的中心紅點（若存在）
+      // v17: 顯示「中南美洲」的中心紅點（若存在）
       if (regionName === '中南美洲' && locationEvents[0] && locationEvents[0].centerMarker) {
         map.addLayer(locationEvents[0].centerMarker);
       }
