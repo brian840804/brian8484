@@ -1511,59 +1511,28 @@ function showClusterPopup(events, coords) {
 
 // 處理所有事件
 
-// === PATCH v19: 固定 1700「美國、紐澳如何躍升牛肉產量大宗？」在英國幾何中心，並走紅色標點 ===
+// === PATCH v22-inline: 牛肉事件 → 英國幾何中心紅點（取消 labelOnly） ===
 (function(){
   try {
-    if (!Array.isArray(events) || typeof regionCircles === 'undefined' || !regionCircles['英國']) return;
-    const ukCenter = regionCircles['英國'].center;
+    // 此段與主程式同作用域，能直接操作 events。
+    const uk = (typeof regionCircles!=='undefined' && regionCircles['英國']) ? regionCircles['英國'].center : null;
+    if (!uk) return;
     for (let i = 0; i < events.length; i++) {
       const ev = events[i];
-      if (ev && ev.time === 1700 && ev.name === '美國、紐澳如何躍升牛肉產量大宗？') {
-        ev.coords = ukCenter;     // 轉為座標事件 → 走紅點
-        if (ev.region) delete ev.region; // 移除 region，避免落回區域分組
-      }
-    }
-    console.log('✅ v19: 牛肉事件已鎖定英國中心紅點');
-  } catch (e) { console.warn('v19 patch failed', e); }
-})();
-// === END PATCH v19 ===
-
-// === PATCH v20: 1700「美國、紐澳如何躍升牛肉產量大宗？」 → 英國幾何中心（紅點路徑） ===
-(function(){
-  try {
-    if (!Array.isArray(events) || typeof regionCircles === 'undefined' || !regionCircles['英國']) return;
-    const ukCenter = regionCircles['英國'].center;
-    for (let i = 0; i < events.length; i++) {
-      const ev = events[i];
-      if (ev && ev.time === 1700 && ev.name === '美國、紐澳如何躍升牛肉產量大宗？') {
-        ev.coords = ukCenter;     // 轉為座標事件 → createClusterMarker 會用紅色 pin
-        if (ev.region) delete ev.region; // 移除 region，避免走區域路徑
-      }
-    }
-    console.log('✅ v20: 牛肉事件 → 英國幾何中心紅點');
-  } catch (e) { console.warn('v20 patch failed', e); }
-})();
-// === END PATCH v20 ===
-
-// === PATCH v22: 牛肉事件強制走紅點（取消 labelOnly） ===
-(function(){
-  try {
-    if (!Array.isArray(events) || typeof regionCircles === 'undefined' || !regionCircles['英國']) return;
-    const ukCenter = regionCircles['英國'].center;
-    for (let i = 0; i < events.length; i++) {
-      const ev = events[i];
-      if (ev && (ev.time === 1700 || String(ev.time) === '1700') &&
-               String(ev.name).includes('牛肉') &&
-               String(ev.name).includes('躍升')) {
-        ev.coords = ukCenter;
+      if (!ev) continue;
+      const isBeef1700 = (ev.time === 1700 || String(ev.time) === '1700') &&
+                         String(ev.name).includes('牛肉') &&
+                         String(ev.name).includes('躍升');
+      if (isBeef1700) {
+        ev.coords = uk;          // 強制轉為座標事件 → 走紅針樣式
         if (ev.region) delete ev.region;
-        if (ev.labelOnly) ev.labelOnly = false; // 關閉標籤模式，讓 marker-pin 顯示
+        if (ev.labelOnly) ev.labelOnly = false; // 關閉只顯示標籤
       }
     }
-    console.log('✅ v22: 取消 labelOnly，牛肉事件改走紅點');
-  } catch(e) { console.warn('v22 patch failed', e); }
+    console.log('✅ v22-inline: 取消 labelOnly，牛肉事件改走紅點');
+  } catch (e) { console.warn('v22-inline patch failed', e); }
 })();
-// === END PATCH v22 ===
+// === END PATCH v22-inline ===
 const locationGroups = groupEventsByLocation(events);
 
 locationGroups.forEach((locationEvents, locationKey) => {
@@ -1592,16 +1561,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
             className: 'region-circle'
           });
         });
-        
-        // v18: 移除 1700 年「美國、紐澳如何躍升牛肉產量大宗？」的區域圓圈（僅此一筆）
-        locationEvents.forEach(function(ev){
-          try {
-            if (ev && ev.time === 1700 && ev.name === '美國、紐澳如何躍升牛肉產量大宗？') {
-              ev.areaLayer = undefined;
-            }
-          } catch (e) {}
-        });
-createdCircles++;
+        createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
           if (Array.isArray(locationEvents) &&
@@ -1762,9 +1722,7 @@ try {
     if (ev.clusterMarker && map.hasLayer(ev.clusterMarker)) map.removeLayer(ev.clusterMarker);
     if (ev.displayMarker && map.hasLayer(ev.displayMarker)) map.removeLayer(ev.displayMarker);
     if (ev.areaLayer && map.hasLayer(ev.areaLayer)) map.removeLayer(ev.areaLayer);
-  
-    if (ev.forceMarker && map.hasLayer(ev.forceMarker)) map.removeLayer(ev.forceMarker); // v21 cleanup
-});
+  });
   
   // 重新創建並顯示當前時間的標記
   locationGroups.forEach((locationEvents, locationKey) => {
@@ -1776,34 +1734,12 @@ try {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      
-// 顯示區域圓形
+      // 顯示區域圓形
       locationEvents.forEach(ev => {
         if (ev.areaLayer) map.addLayer(ev.areaLayer);
       });
       
-  
-      // v21: 1700 牛肉事件 — 強制覆蓋一顆紅色標點（避免樣式落在白點路徑）
-      (function(){
-        try {
-          var beef = (locationEvents || []).find(function(e){ return e && e.time === 1700 && e.name === '美國、紐澳如何躍升牛肉產量大宗？'; });
-          if (beef && coords) {
-            beef.forceMarker = L.marker(coords, {
-              icon: L.divIcon({
-                html: `<div class="custom-marker">
-                         <div class="marker-pin"></div>
-                         <div class="marker-label">${beef.name}</div>
-                       </div>`,
-                className: 'custom-marker-container',
-                iconSize: [150, 20],
-                iconAnchor: [6, 10]
-              })
-            });
-            map.addLayer(beef.forceMarker);
-          }
-        } catch (e) {}
-      })();
-// 結尾同步絲路顯示（只在 year=0 顯示）
+  // 結尾同步絲路顯示（只在 year=0 顯示）
 }
     
     if (coords) {
