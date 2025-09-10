@@ -108,6 +108,66 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
+// === PATCH v14 (minimal): Ensure red pins for area-only regions ===
+(function(){
+  try {
+    if (typeof regionMarkers === 'undefined') return;
+    function centerOf(key, fallback){
+      try {
+        if (typeof regionCircles !== 'undefined' && regionCircles[key] && Array.isArray(regionCircles[key].center)) {
+          return regionCircles[key].center;
+        }
+      } catch (e) {}
+      return fallback;
+    }
+    function ensureMarker(key, coords){
+      if (!Object.prototype.hasOwnProperty.call(regionMarkers, key)) {
+        regionMarkers[key] = coords;
+      }
+    }
+    ensureMarker('中南美洲', centerOf('中南美洲', [19.4326, -99.1332]));
+    ensureMarker('中國',   centerOf('中國',   [35.0, 105.0]));
+    ensureMarker('英國',   centerOf('英國',   [54.0,  -2.0]));
+    ensureMarker('美國',   centerOf('美國',   [40.0, -95.0]));
+    ensureMarker('澳洲',   centerOf('澳洲',   [-25.0, 133.0]));
+    ensureMarker('台灣',   centerOf('台灣',   [23.8, 121.0]));
+    ensureMarker('美洲',   [15.0, -75.0]); // broad region
+    console.log('✅ v14: 補上大區域地名的紅點');
+  } catch (e) { console.warn('v14 patch failed:', e); }
+})();
+// === END PATCH v14 ===
+
+
+// === PATCH v14 (minimal): Ensure red pins for area-only regions (中南美洲、美洲、中國、英國、美國、澳洲、台灣) ===
+(function(){
+  try {
+    if (typeof regionMarkers === 'undefined') return;
+    function centerOf(key, fallback){
+      try {
+        if (typeof regionCircles !== 'undefined' && regionCircles[key] && Array.isArray(regionCircles[key].center)) {
+          return regionCircles[key].center;
+        }
+      } catch (e) {}
+      return fallback;
+    }
+    function ensureMarker(key, coords){
+      if (!Object.prototype.hasOwnProperty.call(regionMarkers, key)) {
+        regionMarkers[key] = coords;
+      }
+    }
+    ensureMarker('中南美洲', centerOf('中南美洲', [19.4326, -99.1332]));
+    ensureMarker('中國',   centerOf('中國',   [35.0, 105.0]));
+    ensureMarker('英國',   centerOf('英國',   [54.0,  -2.0]));
+    ensureMarker('美國',   centerOf('美國',   [40.0, -95.0]));
+    ensureMarker('澳洲',   centerOf('澳洲',   [-25.0, 133.0]));
+    ensureMarker('台灣',   centerOf('台灣',   [23.8, 121.0]));
+    ensureMarker('美洲',   [15.0, -75.0]); // broad region
+    console.log('✅ v14: 補上大區域地名的紅點');
+  } catch (e) { console.warn('v14 patch failed:', e); }
+})();
+// === END PATCH v14 ===
+
+
 // === PATCH v11: 新增「國家+城市」精確座標 ===
 (function(){
   if (typeof regionMarkers === 'undefined') return;
