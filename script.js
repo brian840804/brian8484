@@ -703,8 +703,7 @@ let __skipDefaultPlacement = false;
           // 其次使用區域圓形
           else if (regionCircles[row['地區']]) {
             event.region = row['地區'];
-            event.coords = regionCircles[row['地區']].center; // v15: also drop a red pin at region center
-            console.log(`   🎯 使用區域圓形+中心紅點: ${row['地區']}`);
+            console.log(`   🎯 使用區域圓形: ${row['地區']}`);
           } 
 
 // 找不到對應位置
@@ -1524,7 +1523,8 @@ locationGroups.forEach((locationEvents, locationKey) => {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      // 為區域事件添加圓形
+      
+// 為區域事件添加圓形
       if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
         locationEvents.forEach(ev => {
@@ -1539,7 +1539,25 @@ locationGroups.forEach((locationEvents, locationKey) => {
             className: 'region-circle'
           });
         });
-        createdCircles++;
+        
+        // v16: 若為「中南美洲」，在中心建立紅色標點（保留圓圈）
+        if (regionName === '中南美洲' && coords) {
+          const firstEv = locationEvents[0];
+          if (firstEv && !firstEv.centerMarker) {
+            firstEv.centerMarker = L.marker(coords, {
+              icon: L.divIcon({
+                html: `<div class="custom-marker">
+                         <div class="marker-pin"></div>
+                         <div class="marker-label">${firstEv.name}</div>
+                       </div>`,
+                className: 'custom-marker-container',
+                iconSize: [150, 20],
+                iconAnchor: [6, 10]
+              })
+            });
+          }
+        }
+createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
           if (Array.isArray(locationEvents) &&
@@ -1700,7 +1718,8 @@ try {
     if (ev.clusterMarker && map.hasLayer(ev.clusterMarker)) map.removeLayer(ev.clusterMarker);
     if (ev.displayMarker && map.hasLayer(ev.displayMarker)) map.removeLayer(ev.displayMarker);
     if (ev.areaLayer && map.hasLayer(ev.areaLayer)) map.removeLayer(ev.areaLayer);
-  });
+  
+    if (ev.centerMarker && map.hasLayer(ev.centerMarker)) map.removeLayer(ev.centerMarker); // v16: 中南美洲中心紅點清除});
   
   // 重新創建並顯示當前時間的標記
   locationGroups.forEach((locationEvents, locationKey) => {
@@ -1712,12 +1731,18 @@ try {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      // 顯示區域圓形
+      
+// 顯示區域圓形
       locationEvents.forEach(ev => {
         if (ev.areaLayer) map.addLayer(ev.areaLayer);
       });
       
-  // 結尾同步絲路顯示（只在 year=0 顯示）
+  
+      // v16: 顯示「中南美洲」的中心紅點（若存在）
+      if (regionName === '中南美洲' && locationEvents[0] && locationEvents[0].centerMarker) {
+        map.addLayer(locationEvents[0].centerMarker);
+      }
+// 結尾同步絲路顯示（只在 year=0 顯示）
 }
     
     if (coords) {
