@@ -1544,6 +1544,26 @@ function showClusterPopup(events, coords) {
   } catch (e) { console.warn('v20 patch failed', e); }
 })();
 // === END PATCH v20 ===
+
+// === PATCH v22: 牛肉事件強制走紅點（取消 labelOnly） ===
+(function(){
+  try {
+    if (!Array.isArray(events) || typeof regionCircles === 'undefined' || !regionCircles['英國']) return;
+    const ukCenter = regionCircles['英國'].center;
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i];
+      if (ev && (ev.time === 1700 || String(ev.time) === '1700') &&
+               String(ev.name).includes('牛肉') &&
+               String(ev.name).includes('躍升')) {
+        ev.coords = ukCenter;
+        if (ev.region) delete ev.region;
+        if (ev.labelOnly) ev.labelOnly = false; // 關閉標籤模式，讓 marker-pin 顯示
+      }
+    }
+    console.log('✅ v22: 取消 labelOnly，牛肉事件改走紅點');
+  } catch(e) { console.warn('v22 patch failed', e); }
+})();
+// === END PATCH v22 ===
 const locationGroups = groupEventsByLocation(events);
 
 locationGroups.forEach((locationEvents, locationKey) => {
