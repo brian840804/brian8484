@@ -1594,9 +1594,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
     }
     
     if (coords) {
-            // v23: 最晚關閉 labelOnly，確保紅針樣式
-      (function(){try{const beef=(locationEvents||[]).find(ev=>ev&&(ev.time===1700||String(ev.time)==='1700')&&String(ev.name).includes('牛肉')&&String(ev.name).includes('躍升'));if(beef&&beef.labelOnly)beef.labelOnly=false;}catch(e){}})();
-const marker = createClusterMarker(locationEvents, coords);
+      const marker = createClusterMarker(locationEvents, coords);
       locationEvents[0].displayMarker = marker; // 用於顯示控制
       createdMarkers++;
     }
@@ -2552,3 +2550,43 @@ window.showImageModal = showImageModal;
 })();
 // === END PATCH ===
 
+
+
+// === PATCH v25: 強制牛肉事件使用紅色標點，並移除其圓圈（最小入侵，包裝 createClusterMarker） ===
+(function(){
+  try {
+    if (typeof L === 'undefined' || typeof createClusterMarker !== 'function') return;
+    const __origCreate = createClusterMarker;
+    window.createClusterMarker = function(locationEvents, coords){
+      const marker = __origCreate(locationEvents, coords);
+      try {
+        const beef = (locationEvents || []).find(ev =>
+          ev && (ev.time === 1700 || String(ev.time) === '1700') &&
+          String(ev.name).includes('牛肉') && String(ev.name).includes('躍升')
+        );
+        if (beef) {
+          // 1) 不要它的圓圈（若存在於地圖上則移除）
+          if (beef.areaLayer && window.map && map.hasLayer(beef.areaLayer)) {
+            map.removeLayer(beef.areaLayer);
+          }
+          // 2) 將此群組的 marker 強制改成紅針樣式
+          if (marker && marker.setIcon) {
+            marker.setIcon(L.divIcon({
+              html: `<div class="custom-marker">
+                       <div class="marker-pin"></div>
+                       <div class="marker-label">${beef.name}</div>
+                     </div>`,
+              className: 'custom-marker-container',
+              iconSize: [150, 20],
+              iconAnchor: [6, 10]
+            }));
+            if (marker.setZIndexOffset) marker.setZIndexOffset(1000);
+          }
+        }
+      } catch(e) { /* no-op */ }
+      return marker;
+    };
+    console.log('✅ v25: 已包裝 createClusterMarker，牛肉事件將以紅針呈現且不顯示圓圈');
+  } catch(e) { console.warn('v25 wrapper failed', e); }
+})();
+// === END PATCH v25 ===
