@@ -1523,9 +1523,7 @@ locationGroups.forEach((locationEvents, locationKey) => {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      
-// 為區域事件添加圓形...（原區塊如上）
-// 為區域事件添加圓形
+      // 為區域事件添加圓形
       if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
         locationEvents.forEach(ev => {
@@ -1540,25 +1538,16 @@ locationGroups.forEach((locationEvents, locationKey) => {
             className: 'region-circle'
           });
         });
-        createdCircles++;
-        // v17: 只針對「中南美洲」——在中心建立紅色標點（保留圓圈）
-        if (regionName === '中南美洲' && coords) {
-          const ev0 = locationEvents[0];
-          if (ev0 && !ev0.centerMarker) {
-            ev0.centerMarker = L.marker(coords, {
-              icon: L.divIcon({
-                html: `<div class="custom-marker">
-                         <div class="marker-pin"></div>
-                         <div class="marker-label">${ev0.name}</div>
-                       </div>`,
-                className: 'custom-marker-container',
-                iconSize: [150, 20],
-                iconAnchor: [6, 10]
-              })
-            });
-          }
-        }
-
+        
+        // v18: 移除 1700 年「美國、紐澳如何躍升牛肉產量大宗？」的區域圓圈（僅此一筆）
+        locationEvents.forEach(function(ev){
+          try {
+            if (ev && ev.time === 1700 && ev.name === '美國、紐澳如何躍升牛肉產量大宗？') {
+              ev.areaLayer = undefined;
+            }
+          } catch (e) {}
+        });
+createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
           if (Array.isArray(locationEvents) &&
@@ -1719,9 +1708,7 @@ try {
     if (ev.clusterMarker && map.hasLayer(ev.clusterMarker)) map.removeLayer(ev.clusterMarker);
     if (ev.displayMarker && map.hasLayer(ev.displayMarker)) map.removeLayer(ev.displayMarker);
     if (ev.areaLayer && map.hasLayer(ev.areaLayer)) map.removeLayer(ev.areaLayer);
-  
-    if (ev.centerMarker && map.hasLayer(ev.centerMarker)) map.removeLayer(ev.centerMarker); // v17: 中南美洲中心紅點清除
-});
+  });
   
   // 重新創建並顯示當前時間的標記
   locationGroups.forEach((locationEvents, locationKey) => {
@@ -1733,18 +1720,12 @@ try {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      
-// 顯示區域圓形
+      // 顯示區域圓形
       locationEvents.forEach(ev => {
         if (ev.areaLayer) map.addLayer(ev.areaLayer);
       });
       
-  
-      // v17: 顯示「中南美洲」的中心紅點（若存在）
-      if (regionName === '中南美洲' && locationEvents[0] && locationEvents[0].centerMarker) {
-        map.addLayer(locationEvents[0].centerMarker);
-      }
-// 結尾同步絲路顯示（只在 year=0 顯示）
+  // 結尾同步絲路顯示（只在 year=0 顯示）
 }
     
     if (coords) {
