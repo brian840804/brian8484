@@ -1510,29 +1510,6 @@ function showClusterPopup(events, coords) {
 }
 
 // 處理所有事件
-
-// === PATCH v22-inline: 牛肉事件 → 英國幾何中心紅點（取消 labelOnly） ===
-(function(){
-  try {
-    // 此段與主程式同作用域，能直接操作 events。
-    const uk = (typeof regionCircles!=='undefined' && regionCircles['英國']) ? regionCircles['英國'].center : null;
-    if (!uk) return;
-    for (let i = 0; i < events.length; i++) {
-      const ev = events[i];
-      if (!ev) continue;
-      const isBeef1700 = (ev.time === 1700 || String(ev.time) === '1700') &&
-                         String(ev.name).includes('牛肉') &&
-                         String(ev.name).includes('躍升');
-      if (isBeef1700) {
-        ev.coords = uk;          // 強制轉為座標事件 → 走紅針樣式
-        if (ev.region) delete ev.region;
-        if (ev.labelOnly) ev.labelOnly = false; // 關閉只顯示標籤
-      }
-    }
-    console.log('✅ v22-inline: 取消 labelOnly，牛肉事件改走紅點');
-  } catch (e) { console.warn('v22-inline patch failed', e); }
-})();
-// === END PATCH v22-inline ===
 const locationGroups = groupEventsByLocation(events);
 
 locationGroups.forEach((locationEvents, locationKey) => {
@@ -1617,7 +1594,9 @@ locationGroups.forEach((locationEvents, locationKey) => {
     }
     
     if (coords) {
-      const marker = createClusterMarker(locationEvents, coords);
+            // v23: 最晚關閉 labelOnly，確保紅針樣式
+      (function(){try{const beef=(locationEvents||[]).find(ev=>ev&&(ev.time===1700||String(ev.time)==='1700')&&String(ev.name).includes('牛肉')&&String(ev.name).includes('躍升'));if(beef&&beef.labelOnly)beef.labelOnly=false;}catch(e){}})();
+const marker = createClusterMarker(locationEvents, coords);
       locationEvents[0].displayMarker = marker; // 用於顯示控制
       createdMarkers++;
     }
