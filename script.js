@@ -53,11 +53,7 @@ const regionCircles = {
   '非洲': { center: [0, 20], radius: 1500000 },
   '澳洲': { center: [-25, 135], radius: 1000000 },
   '紐西蘭': { center: [-40, 175], radius: 300000 },
-  '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 },
-  '中南美洲': { center: [4.57, -74.3], radius: 2600000 },
-  '義大利、希臘': { center: [40.75, 17.25], radius: 450000 },
-  '雅典；羅馬': { center: [40.75, 17.25], radius: 450000 },
-  '沙烏地阿拉伯': { center: [23.89, 45.08], radius: 900000 }
+  '以色列、巴勒斯坦地區': { center: [31.5, 35.0], radius: 200000 }
 };
 
 
@@ -107,36 +103,6 @@ const regionMarkers = {
   '巴西聖保羅': [-23.5505, -46.6333],
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
-
-// === PATCH v14 (minimal): Ensure red pins for area-only regions (中南美洲、美洲、中國、英國、美國、澳洲、台灣) ===
-(function(){
-  try {
-    if (typeof regionMarkers === 'undefined') return;
-    function centerOf(key, fallback){
-      try {
-        if (typeof regionCircles !== 'undefined' && regionCircles[key] && Array.isArray(regionCircles[key].center)) {
-          return regionCircles[key].center;
-        }
-      } catch (e) {}
-      return fallback;
-    }
-    function ensureMarker(key, coords){
-      if (!Object.prototype.hasOwnProperty.call(regionMarkers, key)) {
-        regionMarkers[key] = coords;
-      }
-    }
-    ensureMarker('中南美洲', centerOf('中南美洲', [19.4326, -99.1332]));
-    ensureMarker('中國',   centerOf('中國',   [35.0, 105.0]));
-    ensureMarker('英國',   centerOf('英國',   [54.0,  -2.0]));
-    ensureMarker('美國',   centerOf('美國',   [40.0, -95.0]));
-    ensureMarker('澳洲',   centerOf('澳洲',   [-25.0, 133.0]));
-    ensureMarker('台灣',   centerOf('台灣',   [23.8, 121.0]));
-    ensureMarker('美洲',   [15.0, -75.0]); // broad region
-    console.log('✅ v14: 補上大區域地名的紅點');
-  } catch (e) { console.warn('v14 patch failed:', e); }
-})();
-// === END PATCH v14 ===
-
 
 // === PATCH v11: 新增「國家+城市」精確座標 ===
 (function(){
@@ -581,22 +547,6 @@ loadingManager.nextStage();
     content: generatePanelContent(row, year)
   }
 };
-let __consumeOriginal = false;
-
-// === PATCH (EE→MN ellipse setup): 將「東歐至蒙古」事件定位到哈薩克幾何中心（座標），避免落入預設區域 ===
-(function(){
-  try {
-    var loc = (row && row['地區']) ? String(row['地區']).trim() : '';
-    if (loc === '東歐至蒙古') {
-      // 哈薩克近似幾何中心（緯度、經度）
-      var northShiftDeg = 150000 / 111320;
-      var _latEE = 48.0 + northShiftDeg;
-      event.coords = [_latEE, 67.0];
-      event.region = undefined; // 以座標為主，避免被區域分組接手
-    }
-  } catch(e) { console.warn(e); }
-})();
-
 
 // === PATCH: Force '台灣桃園/臺灣桃園' to use Taipei marker ===
 (function(){
@@ -684,43 +634,6 @@ let __skipDefaultPlacement = false;
 })();
 // === END PATCH v12 ===
 
-// === SPECIAL CASE (Beef 1700 triad consume): push UK/US/AU circles + US/AU centers; consume original ===
-(function(){
-  try {
-    var _name = (event && event.name) ? String(event.name).trim() : '';
-    var _year = (typeof year !== 'undefined') ? year : null;
-    if (false /* disabled per request */ && _name === '美國、紐澳如何躍升牛肉產量大宗？' && _year === 1700) {
-      if (!window.__EXTRA_ARROWS__) window.__EXTRA_ARROWS__ = [];
-      if (typeof regionCircles !== 'undefined') {
-        ['英國','美國','澳洲'].forEach(function(k){
-          if (regionCircles[k]) {
-            events.push({ ...event, coords: undefined, region: k, __beefTriad: true });
-            successfulEvents++;
-          }
-        });
-        var usC = regionCircles['美國'] && regionCircles['美國'].center;
-        var auC = regionCircles['澳洲'] && regionCircles['澳洲'].center;
-        if (usC) { events.push({ ...event, coords: usC, region: undefined, __beefTriad: true, __centerDot: 'US' }); successfulEvents++; }
-        if (auC) { events.push({ ...event, coords: auC, region: undefined, __beefTriad: true, __centerDot: 'AU' }); successfulEvents++; }
-        var ukC = regionCircles['英國'] && regionCircles['英國'].center;
-        if (ukC && usC) window.__EXTRA_ARROWS__.push({ from: ukC, to: usC });
-        if (ukC && auC) window.__EXTRA_ARROWS__.push({ from: ukC, to: auC });
-      }
-      // consume original row (do not push the raw event)
-      __consumeOriginal = true;
-      // optional isolation
-      __skipDefaultPlacement = true;
-    }
-  } catch(e) { console.warn('Beef 1700 consume special-case error', e); }
-})();
-// === END SPECIAL CASE ===
-
-
-
-
-
-
-
 
 
 
@@ -771,84 +684,14 @@ if (event.videos.length > 0 || event.images.length > 0) {
 
           } // end dual-skip guard
 
-if (!__consumeOriginal) if (!__consumeOriginal) { events.push(event); successfulEvents++; }
+events.push(event);
+successfulEvents++;
 console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
         });
       }
     });
 
     console.log(`✅ Excel 檔案載入完成!`);
-
-// === PATCH (2025-09-08 • fix): Force "西方食材進入中國" to silk road point again, without touching originals ===
-(function () {
-  try {
-    if (!Array.isArray(events)) return;
-    var NAME_RE = /西方食材.*進入中國/;
-    var silkRoadCenterOnLine = [36.2605, 59.6168]; // 馬什哈德（在線上）
-
-    var changed = 0;
-    for (var i = 0; i < events.length; i++) {
-      var ev = events[i];
-      var n = (ev && ev.name ? String(ev.name).trim() : '');
-      if (NAME_RE.test(n)) {
-        ev.coords = silkRoadCenterOnLine;
-        if (ev.region) delete ev.region; // 去掉區域圓形，僅標點
-        ev.labelOnly = false;
-        changed++;
-      }
-    }
-    console.log(changed > 0 
-      ? '✅ 修正：已將「西方食材進入中國」定位回絲路（馬什哈德）' 
-      : 'ℹ️ 修正：目前找不到「西方食材進入中國」事件');
-  } catch (e) { console.warn('修正定位失敗：', e); }
-})();
-// === END PATCH ===
-
-
-// === PATCH (2025-09-08): Reposition event "西方食材進入中國" onto Silk Road centerpoint ===
-(function () {
-  try {
-    if (!Array.isArray(events)) return;
-    var silkRoadCenterOnLine = [36.2605, 59.6168]; // 馬什哈德（script 原有絲路座標之一）
-    var changed = 0;
-    for (var i = 0; i < events.length; i++) {
-      var ev = events[i];
-      if (ev && ev.name === '西方食材進入中國') {
-        ev.coords = silkRoadCenterOnLine;
-        if (ev.region) delete ev.region;
-        ev.labelOnly = false;
-        changed++;
-      }
-    }
-    if (changed > 0) {
-      console.log('✅ 已將「西方食材進入中國」重新定位於絲路路線中心點（馬什哈德）');
-    }
-  } catch (e) {
-    console.warn('PATCH 重新定位失敗：', e);
-  }
-})();
-// === END PATCH ===
-
-    // === PATCH (2025-09-09): 1700/美國/「美國西部畜牧業興起」 -> 內華達幾何中心（最小改動） ===
-(function () {
-  try {
-    if (!Array.isArray(events)) return;
-    var NV_CENTER = [39.5152, -116.8537]; // [lat, lng]
-    var changed = 0;
-    for (var i = 0; i < events.length; i++) {
-      var ev = events[i];
-      if (!ev) continue;
-      if (ev.time === 1700 && ev.name === '美國西部畜牧業興起' && ev.region === '美國') {
-        ev.coords = NV_CENTER;
-        delete ev.region; // avoid region-circle fallback
-        changed++;
-      }
-    }
-    console.log(changed>0 ? '✅ 已將「美國西部畜牧業興起」(1700/美國) 置於內華達幾何中心' : 'ℹ️ 未找到 1700/美國/美國西部畜牧業興起');
-  } catch (e) { console.warn('PATCH NV center (west cattle) failed:', e); }
-})();
-// === END PATCH (2025-09-09) ===
-
     console.log(`📊 處理統計:`);
     console.log(`   總共處理: ${totalProcessed} 筆資料`);
     console.log(`   成功載入: ${successfulEvents} 個事件`);
@@ -889,7 +732,6 @@ loadingManager.nextStage();
   const initialCenter = [20, 0];
   const initialZoom = 3;
 const map = L.map('map', {
-
   maxBounds: [[-60, -180], [75, 180]],
   maxBoundsViscosity: 1,
   minZoom: 3,
@@ -985,188 +827,7 @@ loadingManager.nextStage();
     map.fitBounds([[-60, -180], [75, 180]]);
     console.log('✅ 地圖初始化完成');
 
-// === PATCH (2025-09-08): Highlight Silk Road polyline when hovering "西方食材進入中國" ===
-(function(){
-  try {
-    if (typeof map === 'undefined') return;
-
-    // 找到已建立的絲路 polyline，這裡假設之前已有 silkRoadLayer 加入 map
-    var silkRoadLayer;
-    map.eachLayer(function(layer){
-      if (layer instanceof L.Polyline && layer.options && layer.options.className === 'silk-road-polyline') {
-        silkRoadLayer = layer;
-      }
-    });
-
-    // 如果沒有 className，則新建一個標記用的 polyline 參考
-    if (!silkRoadLayer && typeof silkRoadCoords !== 'undefined') {
-      silkRoadLayer = L.polyline(silkRoadCoords, {
-        color: '#ff7f00',
-        weight: 4,
-        opacity: 0.9,
-        className: 'silk-road-polyline'
-      }).addTo(map);
-    }
-
-    if (!silkRoadLayer) {
-      console.warn('未找到絲路 polyline，無法綁定高亮效果');
-      return;
-    }
-
-    // 定義高亮與恢復樣式
-    var defaultStyle = { color: '#ff7f00', weight: 4, opacity: 0.9 };
-    var highlightStyle = { color: '#FFD700', weight: 6, opacity: 1.0 };
-
-    function applyStyle(layer, style) {
-      layer.setStyle(style);
-    }
-
-    // 掛勾 marker 與 label
-    if (Array.isArray(events)) {
-      events.forEach(function(ev){
-        if (ev && ev.name === '西方食材進入中國' && ev._leaflet_id) {
-          var layer = map._layers[ev._leaflet_id];
-          if (layer) {
-            layer.on('mouseover', function(){ applyStyle(silkRoadLayer, highlightStyle); });
-            layer.on('mouseout', function(){ applyStyle(silkRoadLayer, defaultStyle); });
-          }
-        }
-      });
-    }
-
-    console.log('✅ 已為「西方食材進入中國」標點綁定滑鼠高亮絲路效果');
-  } catch(e) {
-    console.warn('PATCH 高亮絲路失敗：', e);
-  }
-})();
-// === END PATCH ===
-
-
 // === 陸上絲綢之路（固定顯示；橘色主線 + 白色暈邊） ===
-
-// === PATCH (2025-09-08): Hovering "西方食材進入中國" highlights the entire Silk Road ===
-(function () {
-  try {
-    const TARGET_EVENT_NAME = '西方食材進入中國';
-    // 需要使用到已定義於原檔的 silkRoadCoords 與 Leaflet 地圖實例。
-    // 嘗試取得 Leaflet 地圖實例：優先使用全域 map、否則從 #map 尋找綁定的 Leaflet 物件。
-    function getLeafletMapInstance() {
-      try {
-        if (typeof map !== 'undefined' && map && typeof map.addLayer === 'function') return map;
-      } catch (e) {}
-      // 從 Leaflet 內部註冊找（穩妥度一般，但足夠用於不修改原碼的 patch）
-      const panes = document.querySelectorAll('.leaflet-pane');
-      if (!panes || panes.length === 0) return null;
-      // 透過任意 pane 的 _leaflet_id 回推 map：leaflet 在 DOM 上沒有直接存 map，
-      // 這裡退而求其次：從世界座標 pane 往上找 .leaflet-container 綁定的物件。
-      const container = document.querySelector('.leaflet-container');
-      if (container && container._leaflet) return container._leaflet; // 某些版本會掛這個
-      // 最後使用全域 L 來嘗試抓第一個地圖實例（若外部套件有暴露）
-      try {
-        if (window.L && L && L.layerGroup) {
-          // 建一層暫時圖層測試 add/remove 來判斷 map 可用性
-          // 但此法仍需要 map，所以直接回 null
-        }
-      } catch (e) {}
-      return null;
-    }
-
-    // 建立高亮圖層（預設不顯示），使用與原檔相同的 silkRoadCoords
-    let silkHighlightLayer = null;
-    function ensureHighlightLayer() {
-      const m = getLeafletMapInstance();
-      if (!m) return null;
-      if (!Array.isArray(silkRoadCoords)) return null;
-      if (silkHighlightLayer) return silkHighlightLayer;
-      // 建立一條比主線更粗、較亮的虛線做高亮
-      silkHighlightLayer = L.polyline(silkRoadCoords, {
-        color: '#FFD166',
-        weight: 8,
-        opacity: 0.85,
-        dashArray: '10,6',
-        interactive: false // 只當裝飾，不攔截互動
-      });
-      return silkHighlightLayer;
-    }
-
-    function showSilkHighlight() {
-      const m = getLeafletMapInstance();
-      const layer = ensureHighlightLayer();
-      if (m && layer && !m.hasLayer(layer)) {
-        layer.addTo(m);
-        if (layer.bringToFront) layer.bringToFront();
-      }
-    }
-
-    function hideSilkHighlight() {
-      const m = getLeafletMapInstance();
-      if (m && silkHighlightLayer && m.hasLayer(silkHighlightLayer)) {
-        m.removeLayer(silkHighlightLayer);
-      }
-    }
-
-    // 綁定 hover：找出顯示該事件名稱的 marker/label DOM
-    function tryBindHoverHandlers() {
-      const NAME = TARGET_EVENT_NAME;
-      let bound = false;
-      // label 文字
-      const labels = Array.from(document.querySelectorAll('.marker-label')).filter(el => (el.textContent || '').trim() === NAME);
-      // 對應的 marker-pin 與容器
-      const pins = [];
-      labels.forEach(label => {
-        const container = label.closest('.custom-marker') || label.closest('.leaflet-marker-icon') || label.parentElement;
-        if (container) {
-          const pin = container.querySelector('.marker-pin');
-          if (pin) pins.push(pin);
-          // 綁在容器本身，確保滑過 label 或 pin 都能觸發
-          [container, label].forEach(el => {
-            if (!el) return;
-            if (el.__silkHoverBound__) return;
-            el.addEventListener('mouseenter', showSilkHighlight, { passive: true });
-            el.addEventListener('mouseleave', hideSilkHighlight, { passive: true });
-            el.__silkHoverBound__ = true;
-            bound = true;
-          });
-          if (pin && !pin.__silkHoverBound__) {
-            pin.addEventListener('mouseenter', showSilkHighlight, { passive: true });
-            pin.addEventListener('mouseleave', hideSilkHighlight, { passive: true });
-            pin.__silkHoverBound__ = true;
-            bound = true;
-          }
-        }
-      });
-      return bound;
-    }
-
-    // 因為原始碼可能於稍後才把 marker 加進 DOM，這裡用輪詢嘗試綁定，成功一次就停止。
-    let attempts = 0;
-    const timer = setInterval(() => {
-      attempts++;
-      const ok = tryBindHoverHandlers();
-      if (ok || attempts > 40) { // 最多嘗試約 20 秒（500ms * 40）
-        clearInterval(timer);
-        if (ok) {
-          console.log('✅ 已綁定「西方食材進入中國」滑過高亮絲路效果');
-        } else {
-          console.log('ℹ️ 未找到事件標籤，未綁定絲路高亮（可能該事件未顯示於當前時間或篩選中）');
-        }
-      }
-    }, 500);
-
-    // 安全網：若之後 DOM 動態變化（篩選切換），再嘗試一次綁定
-    const mapRoot = document.querySelector('#map');
-    if (mapRoot && window.MutationObserver) {
-      const mo = new MutationObserver((muts) => {
-        tryBindHoverHandlers();
-      });
-      mo.observe(mapRoot, { childList: true, subtree: true });
-    }
-  } catch (e) {
-    console.warn('PATCH: 絲路高亮滑過綁定失敗', e);
-  }
-})();
-// === END PATCH ===
-
 const silkRoadCoords = [
   [34.3416, 108.9398], // 長安（西安）
   [36.0611, 103.8343], // 蘭州
@@ -1569,57 +1230,6 @@ locationGroups.forEach((locationEvents, locationKey) => {
           });
         });
         createdCircles++;
-        // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
-        try {
-          if (Array.isArray(locationEvents) &&
-              locationEvents.some(function(ev){
-                var n = ev && ev.name;
-                var r = ev && ev.region;
-                return (n === '遊牧民族的飲食文化') || (typeof r === 'string' && r.indexOf('東歐') !== -1 && r.indexOf('蒙古') !== -1);
-              })) {
-
-            // 清除舊的走廊（避免跨年份殘留）
-            if (map && typeof map.eachLayer === 'function') {
-              map.eachLayer(function(layer){
-                try {
-                  if (layer && layer.options && layer.options.className === 'corridor-ee-mn') {
-                    if (map.hasLayer(layer)) map.removeLayer(layer);
-                  }
-                } catch(e) {}
-              });
-            }
-
-            var eastEurope = [50.0, 25.0];
-            var mongolia = (regionCircles && regionCircles['蒙古'] && regionCircles['蒙古'].center) || [46.0, 103.0];
-
-            // 折線：清晰呈現「從東歐到蒙古」
-            L.polyline([eastEurope, mongolia], {
-              color: '#1d4ed8',
-              weight: 4,
-              opacity: 0.9,
-              className: 'corridor-ee-mn'
-            }).addTo(map);
-
-            // 兩端淡圈：端點聚焦
-            var endRadius = 550000;
-            [eastEurope, mongolia].forEach(function(pt){
-              L.circle(pt, {
-                radius: endRadius,
-                color: '#1d4ed8',
-                fillColor: '#93c5fd',
-                fillOpacity: 0.28,
-                weight: 2.5,
-                stroke: true,
-                interactive: false,
-                className: 'corridor-ee-mn'
-              }).addTo(map);
-            });
-          }
-        } catch (e) {
-          console.warn('Plan C corridor draw error', e);
-        }
-        // === END PATCH (Plan C) ===
-
       }
     }
     
@@ -1669,53 +1279,6 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
-
-// 清除牛肉箭頭殘留（只清這個類別）
-try {
-  if (typeof map !== 'undefined' && map.eachLayer) {
-    const toRemove = [];
-    map.eachLayer(l => { try {
-      if (l && l.options && l.options.className === 'beef-arrow') toRemove.push(l);
-    } catch(e){} });
-    toRemove.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
-  }
-} catch (e) { console.warn('beef-arrow cleanup error', e); }
-
-  // 清除舊的「東歐至蒙古」橢圓圖層（只清這個類別，不影響其他）
-  try {
-    if (typeof map !== 'undefined' && map.eachLayer) {
-      map.eachLayer(function(layer){
-        try {
-          if (layer && layer.options && layer.options.className === 'ee-ellipse') {
-            if (map.hasLayer(layer)) map.removeLayer(layer);
-          }
-        } catch(e) {}
-      });
-    }
-  } catch (e) { console.warn('ee-ellipse cleanup error', e); }
-  // 清除走廊殘留（Plan C 專用，其他圖層不動）
-  try {
-    if (typeof map !== 'undefined' && map.eachLayer) {
-      map.eachLayer(function(layer){
-        try {
-          if (layer && layer.options && layer.options.className === 'corridor-ee-mn') {
-            if (map.hasLayer(layer)) map.removeLayer(layer);
-          }
-        } catch(e) {}
-      });
-    }
-  } catch (e) { console.warn('corridor cleanup error', e); }
-
-// 清除牛肉箭頭殘留（只清這個類別）
-try {
-  if (typeof map !== 'undefined' && map.eachLayer) {
-    const toRemove = [];
-    map.eachLayer(l => { try {
-      if (l && l.options && l.options.className === 'beef-arrow') toRemove.push(l);
-    } catch(e){} });
-    toRemove.forEach(l => { if (map.hasLayer(l)) map.removeLayer(l); });
-  }
-} catch (e) { console.warn('beef-arrow cleanup error', e); }
   console.log(`🔄 更新可見事件: ${currentYear}年, 章節: ${selectedSections.join(', ')}`);
   
   let visibleCount = 0;
@@ -1760,79 +1323,6 @@ try {
   panel.classList.remove('visible');
 
   // 結尾同步絲路顯示（只在 year=0 顯示）
-
-  // === PATCH (EE→MN ellipse draw): 若該事件在目前篩選中可見，於哈薩克中心畫橢圓 ===
-  try {
-    var eeVisible = events.some(function(ev){
-      return ev && ev.time === currentYear && selectedSections.includes(ev.section) &&
-             (ev.name === '遊牧民族的飲食文化' || 
-              (typeof ev.region === 'string' && ev.region.indexOf('東歐') !== -1 && ev.region.indexOf('蒙古') !== -1));
-    });
-    if (eeVisible && typeof L !== 'undefined') {
-      var northShiftDeg = 150000 / 111320;
-      var center = [48.0 + northShiftDeg, 67.0]; // 哈薩克近似幾何中心
-      var rx = 2700000; // 橫軸（公尺）
-      var ry = 750000; // 縱軸（公尺）
-      var rotate = 0;  // 旋轉角度（度）
-      var steps = 96;
-
-      function metersToDegrees(lat, dx, dy) {
-        var latRad = lat * Math.PI / 180;
-        var degLat = dy / 111320;
-        var degLng = dx / (111320 * Math.cos(latRad) || 1);
-        return [degLat, degLng];
-      }
-
-      var pts = [];
-      for (var i = 0; i < steps; i++) {
-        var theta = (i / steps) * 2 * Math.PI;
-        var x = rx * Math.cos(theta);
-        var y = ry * Math.sin(theta);
-        if (rotate) {
-          var rot = rotate * Math.PI / 180;
-          var xr = x * Math.cos(rot) - y * Math.sin(rot);
-          var yr = x * Math.sin(rot) + y * Math.cos(rot);
-          x = xr; y = yr;
-        }
-        var offsets = metersToDegrees(center[0], x, y);
-        pts.push([center[0] + offsets[0], center[1] + offsets[1]]);
-
-      }
-
-      L.polygon(pts, {
-        color: '#1d4ed8',
-        weight: 2,
-        fillColor: '#93c5fd',
-        fillOpacity: 0.25,
-        className: 'ee-ellipse',
-        interactive: false
-      }).addTo(map);
-    }
-  } catch (e) { console.warn('ee-ellipse draw error', e); }
-
-  
-// 繪製牛肉箭頭（比照絲路折線風格）
-try {
-  if (currentYear === 1700 && Array.isArray(window.__EXTRA_ARROWS__) && window.__EXTRA_ARROWS__.length) {
-    window.__EXTRA_ARROWS__.forEach(ar => {
-      if (!ar || !Array.isArray(ar.from) || !Array.isArray(ar.to)) return;
-      L.polyline([ar.from, ar.to], {
-        color: '#1d4ed8',   // 和絲路相同色
-        weight: 4,
-        opacity: 0.9,
-        className: 'beef-arrow'
-      }).addTo(map);
-      // 可選：終點箭頭
-      const deg = Math.atan2(ar.to[1]-ar.from[1], ar.to[0]-ar.from[0]) * 180/Math.PI;
-      const head = L.divIcon({
-        className: 'beef-arrow-head',
-        html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-top:14px solid #1d4ed8;transform: rotate('+deg+'deg);transform-origin:50% 80%;"></div>',
-        iconSize: [0,0], iconAnchor: [0,0]
-      });
-      L.marker(ar.to, { icon: head, interactive:false }).addTo(map);
-    });
-  }
-} catch(e) { console.warn('beef-arrow draw error', e); }
 }
 
   // 章節選擇器事件
@@ -2535,48 +2025,3 @@ window.showImageModal = showImageModal;
   }
 })();
 // === END PATCH v13 ===
-
-// === PATCH (2025-09-08 • late-fix): If marker already rendered, relocate it on the map instance ===
-(function () {
-  try {
-    var TARGET_TEXT = '西方食材進入中國';
-    var targetLatLng = [36.2605, 59.6168];
-    function getMap() {
-      try { if (typeof map !== 'undefined' && map && map.addLayer) return map; } catch (e) {}
-      var container = document.querySelector('.leaflet-container');
-      return (container && container._leaflet) || null;
-    }
-    function moveMarkerIfPresent() {
-      var m = getMap(); if (!m) return false;
-      var icons = Array.from(document.querySelectorAll('.leaflet-marker-icon'));
-      var icon = icons.find(function (el) {
-        var label = el.querySelector('.marker-label');
-        return label && (label.textContent || '').trim() === TARGET_TEXT;
-      });
-      if (!icon) return false;
-      var layers = m._layers || {};
-      var moved = false;
-      for (var k in layers) {
-        var lyr = layers[k];
-        if (lyr && lyr._icon === icon && typeof lyr.setLatLng === 'function') {
-          lyr.setLatLng(targetLatLng);
-          if (lyr.update) try { lyr.update(); } catch (e) {}
-          moved = true;
-          break;
-        }
-      }
-      return moved;
-    }
-    var tries = 0;
-    var timer = setInterval(function () {
-      tries++;
-      if (moveMarkerIfPresent() || tries > 40) { // 最多嘗試約 20 秒
-        clearInterval(timer);
-      }
-    }, 500);
-  } catch (e) {
-    console.warn('late-fix 重新定位 marker 失敗：', e);
-  }
-})();
-// === END PATCH ===
-
