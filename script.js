@@ -1742,7 +1742,9 @@ try {
     if (ev.clusterMarker && map.hasLayer(ev.clusterMarker)) map.removeLayer(ev.clusterMarker);
     if (ev.displayMarker && map.hasLayer(ev.displayMarker)) map.removeLayer(ev.displayMarker);
     if (ev.areaLayer && map.hasLayer(ev.areaLayer)) map.removeLayer(ev.areaLayer);
-  });
+  
+    if (ev.forceMarker && map.hasLayer(ev.forceMarker)) map.removeLayer(ev.forceMarker); // v21 cleanup
+});
   
   // 重新創建並顯示當前時間的標記
   locationGroups.forEach((locationEvents, locationKey) => {
@@ -1754,12 +1756,34 @@ try {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      // 顯示區域圓形
+      
+// 顯示區域圓形
       locationEvents.forEach(ev => {
         if (ev.areaLayer) map.addLayer(ev.areaLayer);
       });
       
-  // 結尾同步絲路顯示（只在 year=0 顯示）
+  
+      // v21: 1700 牛肉事件 — 強制覆蓋一顆紅色標點（避免樣式落在白點路徑）
+      (function(){
+        try {
+          var beef = (locationEvents || []).find(function(e){ return e && e.time === 1700 && e.name === '美國、紐澳如何躍升牛肉產量大宗？'; });
+          if (beef && coords) {
+            beef.forceMarker = L.marker(coords, {
+              icon: L.divIcon({
+                html: `<div class="custom-marker">
+                         <div class="marker-pin"></div>
+                         <div class="marker-label">${beef.name}</div>
+                       </div>`,
+                className: 'custom-marker-container',
+                iconSize: [150, 20],
+                iconAnchor: [6, 10]
+              })
+            });
+            map.addLayer(beef.forceMarker);
+          }
+        } catch (e) {}
+      })();
+// 結尾同步絲路顯示（只在 year=0 顯示）
 }
     
     if (coords) {
