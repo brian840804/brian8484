@@ -1527,6 +1527,23 @@ function showClusterPopup(events, coords) {
   } catch (e) { console.warn('v19 patch failed', e); }
 })();
 // === END PATCH v19 ===
+
+// === PATCH v20: 1700「美國、紐澳如何躍升牛肉產量大宗？」 → 英國幾何中心（紅點路徑） ===
+(function(){
+  try {
+    if (!Array.isArray(events) || typeof regionCircles === 'undefined' || !regionCircles['英國']) return;
+    const ukCenter = regionCircles['英國'].center;
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i];
+      if (ev && ev.time === 1700 && ev.name === '美國、紐澳如何躍升牛肉產量大宗？') {
+        ev.coords = ukCenter;     // 轉為座標事件 → createClusterMarker 會用紅色 pin
+        if (ev.region) delete ev.region; // 移除 region，避免走區域路徑
+      }
+    }
+    console.log('✅ v20: 牛肉事件 → 英國幾何中心紅點');
+  } catch (e) { console.warn('v20 patch failed', e); }
+})();
+// === END PATCH v20 ===
 const locationGroups = groupEventsByLocation(events);
 
 locationGroups.forEach((locationEvents, locationKey) => {
