@@ -1803,6 +1803,30 @@ try {
     });
   }
 } catch(e) { console.warn('beef-arrow draw error', e); }
+
+  // === PATCH v26: 當年份為 1700 時，在英國幾何中心顯示一顆紅色標點（與事件無關） ===
+  try {
+    // 先清掉上一輪可能存在的標記
+    if (window.__uk1700Marker && typeof map !== 'undefined' && map.hasLayer(window.__uk1700Marker)) {
+      map.removeLayer(window.__uk1700Marker);
+    }
+    if (currentYear === 1700 && typeof L !== 'undefined' && typeof regionCircles !== 'undefined' && regionCircles['英國']) {
+      window.__uk1700Marker = L.marker(regionCircles['英國'].center, {
+        icon: L.divIcon({
+          html: `<div class="custom-marker">
+                   <div class="marker-pin"></div>
+                   <div class="marker-label">英國中心</div>
+                 </div>`,
+          className: 'custom-marker-container',
+          iconSize: [150, 20],
+          iconAnchor: [6, 10]
+        }),
+        zIndexOffset: 1200
+      });
+      map.addLayer(window.__uk1700Marker);
+    }
+  } catch (e) { console.warn('v26 uk1700 pin error', e); }
+  // === END PATCH v26 ===
 }
 
   // 章節選擇器事件
@@ -2550,43 +2574,3 @@ window.showImageModal = showImageModal;
 })();
 // === END PATCH ===
 
-
-
-// === PATCH v25: 強制牛肉事件使用紅色標點，並移除其圓圈（最小入侵，包裝 createClusterMarker） ===
-(function(){
-  try {
-    if (typeof L === 'undefined' || typeof createClusterMarker !== 'function') return;
-    const __origCreate = createClusterMarker;
-    window.createClusterMarker = function(locationEvents, coords){
-      const marker = __origCreate(locationEvents, coords);
-      try {
-        const beef = (locationEvents || []).find(ev =>
-          ev && (ev.time === 1700 || String(ev.time) === '1700') &&
-          String(ev.name).includes('牛肉') && String(ev.name).includes('躍升')
-        );
-        if (beef) {
-          // 1) 不要它的圓圈（若存在於地圖上則移除）
-          if (beef.areaLayer && window.map && map.hasLayer(beef.areaLayer)) {
-            map.removeLayer(beef.areaLayer);
-          }
-          // 2) 將此群組的 marker 強制改成紅針樣式
-          if (marker && marker.setIcon) {
-            marker.setIcon(L.divIcon({
-              html: `<div class="custom-marker">
-                       <div class="marker-pin"></div>
-                       <div class="marker-label">${beef.name}</div>
-                     </div>`,
-              className: 'custom-marker-container',
-              iconSize: [150, 20],
-              iconAnchor: [6, 10]
-            }));
-            if (marker.setZIndexOffset) marker.setZIndexOffset(1000);
-          }
-        }
-      } catch(e) { /* no-op */ }
-      return marker;
-    };
-    console.log('✅ v25: 已包裝 createClusterMarker，牛肉事件將以紅針呈現且不顯示圓圈');
-  } catch(e) { console.warn('v25 wrapper failed', e); }
-})();
-// === END PATCH v25 ===
