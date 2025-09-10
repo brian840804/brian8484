@@ -1719,7 +1719,7 @@ try {
     if (ev.displayMarker && map.hasLayer(ev.displayMarker)) map.removeLayer(ev.displayMarker);
     if (ev.areaLayer && map.hasLayer(ev.areaLayer)) map.removeLayer(ev.areaLayer);
   
-    if (ev.centerMarker && map.hasLayer(ev.centerMarker)) map.removeLayer(ev.centerMarker); // v16: 中南美洲中心紅點清除});
+    if (ev.centerMarker && map.hasLayer(ev.centerMarker)) map.removeLayer(ev.centerMarker); // v16: 中南美洲中心紅點清除
   
   // 重新創建並顯示當前時間的標記
   locationGroups.forEach((locationEvents, locationKey) => {
