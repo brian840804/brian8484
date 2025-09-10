@@ -703,7 +703,8 @@ let __skipDefaultPlacement = false;
           // 其次使用區域圓形
           else if (regionCircles[row['地區']]) {
             event.region = row['地區'];
-            console.log(`   🎯 使用區域圓形: ${row['地區']}`);
+            event.coords = regionCircles[row['地區']].center; // v15: also drop a red pin at region center
+            console.log(`   🎯 使用區域圓形+中心紅點: ${row['地區']}`);
           } 
 
 // 找不到對應位置
