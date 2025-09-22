@@ -2579,39 +2579,43 @@ window.showImageModal = showImageModal;
 
 
 
-// === 強制：凡「中南美洲」改為波哥大紅點（含保底 DOM 升級） ===
+// === 波哥大紅點（等待 Leaflet 地圖實體後再加，避免 addLayer 不是函式） ===
 (function(){
   const BOGOTA = { lat: 4.7110, lng: -74.0721 };
-  // 1) 資料層：將中南美洲視為精確點
-  try {
-    if (typeof regionMarkers === 'object' && regionMarkers) regionMarkers['中南美洲'] = [BOGOTA.lat, BOGOTA.lng];
-    if (typeof regionCircles === 'object' && regionCircles && regionCircles['中南美洲']) delete regionCircles['中南美洲'];
-  } catch(_) {}
-
-  // 2) 讀檔完成後，若仍未顯示紅點，直接在波哥大加一顆紅點（高層級），避免被任何樣式路徑吃掉
-  const addForcedBogotaPin = () => {
+  function getMapInstance(){
     try {
-      const pin = L.marker(BOGOTA, {
+      if (window.map && window.map instanceof L.Map) return window.map;
+      if (window.leafletMap && window.leafletMap instanceof L.Map) return window.leafletMap;
+      if (window.myMap && window.myMap instanceof L.Map) return window.myMap;
+    } catch(_) {}
+    return null;
+  }
+  function addBogotaPin(){
+    const m = getMapInstance();
+    if (!m) return false;
+    try {
+      L.marker(BOGOTA, {
         zIndexOffset: 2500,
         icon: L.divIcon({
-          html: `<div class="custom-marker"><div class="marker-pin" style="background:#FF3B30;border-color:#fff"></div></div>`,
+          html: `<div class="custom-marker">
+                   <div class="marker-pin" style="background:#FF3B30;border-color:#fff"></div>
+                 </div>`,
           className: 'custom-marker-container forced-bogota-pin',
           iconSize: [20, 20],
           iconAnchor: [6, 10]
         })
-      });
-      pin.addTo(map);
-      console.log("✅ 強制補上波哥大紅點（保底）", BOGOTA);
-    } catch (e) { console.warn("強制波哥大紅點失敗", e); }
-  };
-
-  // 嘗試在「載入 Excel 完成」log 之後觸發；若抓不到就用延時保底
-  const hookLog = () => {
-    // 若你的程式會呼叫某個 onDataReady/allEventsReady，可在此綁定；否則用 timeout 幾次
-    setTimeout(addForcedBogotaPin, 200);
-    setTimeout(addForcedBogotaPin, 1200);
-  };
-  if (document.readyState === 'complete' || document.readyState === 'interactive') hookLog();
-  else document.addEventListener('DOMContentLoaded', hookLog);
+      }).addTo(m);
+      console.log('✅ 已於地圖實體上強制補上波哥大紅點', m);
+      return true;
+    } catch (e) {
+      console.warn('強制波哥大紅點失敗：', e);
+      return false;
+    }
+  }
+  let tries = 0;
+  const t = setInterval(()=>{
+    tries++;
+    if (addBogotaPin() || tries > 20) clearInterval(t);
+  }, 300);
 })();
-// === End 強制波哥大 ===
+// === End 等待地圖後再加 ===
