@@ -1400,3 +1400,5 @@ html, body {
   background: var(--ios-red, #FF3B30) !important;
   border-color: #fff;
 }
+
+.region-circle { fill: rgba(255,0,0,.15) !important; }
