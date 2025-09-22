@@ -108,6 +108,30 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
+
+
+// === 中南美洲 → 哥倫比亞波哥大（強制以點位顯示，不走區域圓形） ===
+// 說明：將「中南美洲」視為一個可定位的點（波哥大 4.7110, -74.0721），
+// 並移除任何針對「中南美洲」的區域圓設定，以確保永遠走紅點邏輯。
+(function(){
+  try {
+    // 確保 regionMarkers 存在
+    if (typeof regionMarkers === 'object' && regionMarkers) {
+      regionMarkers['中南美洲'] = [4.7110, -74.0721]; // 哥倫比亞波哥大
+    }
+    // 若有別名表，將「中南美洲」正規化成「哥倫比亞波哥大」
+    if (typeof REGION_ALIASES === 'object' && REGION_ALIASES) {
+      REGION_ALIASES['中南美洲'] = '哥倫比亞波哥大';
+    }
+    // 若存在區域圓設定，移除之以避免優先走畫圓分支
+    if (typeof regionCircles === 'object' && regionCircles && regionCircles['中南美洲']) {
+      try { delete regionCircles['中南美洲']; } catch(_) {}
+    }
+  } catch (e) {
+    console.warn('中南美洲→波哥大覆寫失敗：', e);
+  }
+})();
+// === 覆寫結束 ===
 // === PATCH v11: 新增「國家+城市」精確座標 ===
 (function(){
   if (typeof regionMarkers === 'undefined') return;
