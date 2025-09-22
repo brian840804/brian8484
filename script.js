@@ -1,18 +1,30 @@
 
-// === A方案 v2：區域圖形後強制補一顆紅色針點（特定事件） ===
+// === A方案 v3：強韌版補針點（不讓未宣告變數觸發 ReferenceError） ===
 if (typeof addEnsurePin !== 'function') {
   const __ENSURE_PIN_KEYS = new Set([
     "-7000|美洲古文明的玉米馬鈴薯主食文化",
     "西元前7000年|美洲古文明的玉米馬鈴薯主食文化",
     "前7000|美洲古文明的玉米馬鈴薯主食文化"
   ]);
+  function __normCoords(c) {
+    try {
+      if (!c) return null;
+      if (Array.isArray(c) && c.length>=2) return {lat: +c[0], lng: +c[1]};
+      if (typeof c.lat === 'number' && typeof c.lng === 'number') return c;
+      if (typeof c.lat === 'function' && typeof c.lng === 'function') return {lat: c.lat(), lng: c.lng()};
+      if (c.latlng) return __normCoords(c.latlng);
+    } catch(_) {}
+    return null;
+  }
   function addEnsurePin(ev, coords) {
     try {
-      const y = (ev.yearStr || ev.year || ev.period || "").toString().trim();
-      const n = (ev.name || ev.title || "").toString().trim();
+      const y = (ev && (ev.yearStr || ev.year || ev.period) || "").toString().trim();
+      const n = (ev && (ev.name || ev.title) || "").toString().trim();
       const key = `${y}|${n}`;
       if (!__ENSURE_PIN_KEYS.has(key)) return;
-      const pin = L.marker(coords, {
+      const ll = __normCoords(coords);
+      if (!ll) { console.warn("addEnsurePin 無座標，略過", key); return; }
+      const pin = L.marker(ll, {
         zIndexOffset: 2000,
         icon: L.divIcon({
           html: `<div class="custom-marker"><div class="marker-pin"></div></div>`,
@@ -22,13 +34,13 @@ if (typeof addEnsurePin !== 'function') {
         })
       });
       pin.addTo(map);
-      console.log("✅ 已補上紅色針點：", key);
+      console.log("✅ 已補上紅色針點：", key, ll);
     } catch (e) {
       console.warn("addEnsurePin 失敗：", e);
     }
   }
 }
-// === A方案 v2 End ===
+// === A方案 v3 End ===
 
 const regionCircles = {
   '歐洲(西歐)': { center: [48, 5], radius: 700000 },
@@ -776,7 +788,12 @@ if (event.videos.length > 0 || event.images.length > 0) {
 if (!__consumeOriginal) if (!__consumeOriginal) { events.push(event); successfulEvents++; }
 console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
         
-            addEnsurePin(ev, coords);
+            // A方案 v3 guarded call（避免未宣告變數觸發 ReferenceError）
+            (function(){
+              const __ev  = (typeof ev!=='undefined'?ev:(typeof e!=='undefined'?e:(typeof eventObj!=='undefined'?eventObj:(typeof evt!=='undefined'?evt:null))));
+              const __coords = (typeof coords!=='undefined'?coords:(typeof center!=='undefined'?center:(typeof latlng!=='undefined'?latlng:null)));
+              try { addEnsurePin(__ev, __coords); } catch(_){}
+            })();
 });
       }
     });
