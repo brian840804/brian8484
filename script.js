@@ -1,43 +1,3 @@
-
-// === Region-Center Pin Whitelist (minimal, event-specific) ===
-(function(){
-  if (typeof window.__RegionCenterPin === 'undefined') {
-    window.__RegionCenterPin = {
-      KEYS: new Set([
-        "-7000|美洲古文明的玉米馬鈴薯主食文化",
-        "-1500|萌樣天竺鼠，其實是印加美食！" // 若年份不同，仍會由函式做名稱匹配備援
-      ]),
-      NAMES: new Set([
-        "美洲古文明的玉米馬鈴薯主食文化",
-        "萌樣天竺鼠，其實是印加美食！"
-      ]),
-      addAtCircleCenter(ev, circle){
-        try{
-          if (!circle || typeof circle.getLatLng!=='function') return;
-          const p = circle.getLatLng();
-          const y = (ev && (ev.yearStr||ev.year||ev.period)||"").toString().trim();
-          const n = (ev && (ev.name||ev.title)||"").toString().trim();
-          const key = `${y}|${n}`;
-          if (!(this.KEYS.has(key) || this.NAMES.has(n))) return;
-          const ll = {lat:p.lat, lng:p.lng};
-          const pin = L.marker(ll, {
-            zIndexOffset: 1500,
-            icon: L.divIcon({
-              html: `<div class="custom-marker"><div class="marker-pin"></div></div>`,
-              className: 'custom-marker-container region-center-pin',
-              iconSize: [20, 20],
-              iconAnchor: [6, 10]
-            })
-          });
-          pin.addTo(map);
-          console.log("✅ Region-Center Pin added:", key, ll);
-        }catch(e){ console.warn("Region-Center Pin failed", e); }
-      }
-    };
-  }
-})();
-// === End Whitelist ===
-
 const regionCircles = {
   '歐洲(西歐)': { center: [48, 5], radius: 700000 },
   '歐洲(中歐)': { center: [51, 15], radius: 650000 },
@@ -783,9 +743,7 @@ if (event.videos.length > 0 || event.images.length > 0) {
 
 if (!__consumeOriginal) if (!__consumeOriginal) { events.push(event); successfulEvents++; }
 console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
-        
-            window.__RegionCenterPin.addAtCircleCenter(ev, circle);
-});
+        });
       }
     });
 
