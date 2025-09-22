@@ -1803,6 +1803,32 @@ try {
     });
   }
 } catch(e) { console.warn('beef-arrow draw error', e); }
+
+  
+// === PATCH v26: 當年份為 1700 時，在英國幾何中心顯示一顆紅色標點（與事件無關） ===
+  try {
+    // 先清掉上一輪可能存在的標記
+    if (window.__uk1700Marker && typeof map !== 'undefined' && map.hasLayer(window.__uk1700Marker)) {
+      map.removeLayer(window.__uk1700Marker);
+    }
+    if (currentYear === 1700 && typeof L !== 'undefined' && typeof regionCircles !== 'undefined' && regionCircles['英國']) {
+      window.__uk1700Marker = L.marker(regionCircles['英國'].center, {
+        interactive: false,
+        keyboard: false,
+        bubblingMouseEvents: false,
+        icon: L.divIcon({
+          html: `<div class="custom-marker"><div class="marker-pin"></div></div>`,
+          className: 'custom-marker-container',
+          iconSize: [150, 20],
+          iconAnchor: [6, 10]
+        }),
+        zIndexOffset: 1200
+      });
+      map.addLayer(window.__uk1700Marker);
+    }
+  } catch (e) { console.warn('v26 uk1700 pin error', e); }
+  // === END PATCH v26 ===
+// === END PATCH v26 ===
 }
 
   // 章節選擇器事件
