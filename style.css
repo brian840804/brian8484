@@ -1400,6 +1400,3 @@ html, body {
   background: var(--ios-red, #FF3B30) !important;
   border-color: #fff;
 }
-
-.leaflet-marker-pane { z-index: 1000 !important; }
-.custom-marker-container { z-index: 1001 !important; }
