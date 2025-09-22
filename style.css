@@ -1394,6 +1394,3 @@ html, body {
   margin: 0;
   letter-spacing: -0.01em;
 }
-
-/* A方案 v3：避免圓形攔截互動 */
-.region-circle { pointer-events: none; }

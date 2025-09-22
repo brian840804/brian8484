@@ -1,46 +1,109 @@
 
-// === A方案 v3：強韌版補針點（不讓未宣告變數觸發 ReferenceError） ===
-if (typeof addEnsurePin !== 'function') {
-  const __ENSURE_PIN_KEYS = new Set([
-    "-7000|美洲古文明的玉米馬鈴薯主食文化",
-    "西元前7000年|美洲古文明的玉米馬鈴薯主食文化",
-    "前7000|美洲古文明的玉米馬鈴薯主食文化"
-  ]);
-  function __normCoords(c) {
+// === A方案 v4：雙保險補針點（資料層與 DOM 層） ===
+(function(){
+  const TARGET_NAMES = new Set(["美洲古文明的玉米馬鈴薯主食文化"]);
+  const TARGET_YEARS = new Set(["-7000","西元前7000年","前7000"]);
+  const KEY_SET = new Set(Array.from(TARGET_YEARS).flatMap(y => Array.from(TARGET_NAMES).map(n => `${y}|${n}`)));
+
+  function getRegionCenterSafe(nameOrRegion, fallback){
     try {
-      if (!c) return null;
-      if (Array.isArray(c) && c.length>=2) return {lat: +c[0], lng: +c[1]};
-      if (typeof c.lat === 'number' && typeof c.lng === 'number') return c;
-      if (typeof c.lat === 'function' && typeof c.lng === 'function') return {lat: c.lat(), lng: c.lng()};
-      if (c.latlng) return __normCoords(c.latlng);
+      const key = String(nameOrRegion||"").trim();
+      // 嘗試使用你既有的中心點對照（若存在）
+      if (typeof REGION_CENTERS === 'object' && REGION_CENTERS[key]) return REGION_CENTERS[key];
+      if (typeof REGION_ALIASES === 'object' && REGION_ALIASES[key] && REGION_CENTERS[REGION_ALIASES[key]])
+        return REGION_CENTERS[REGION_ALIASES[key]];
     } catch(_) {}
-    return null;
+    return fallback || null;
   }
-  function addEnsurePin(ev, coords) {
+
+  function ensurePinByDataSearch(allEvents){
     try {
-      const y = (ev && (ev.yearStr || ev.year || ev.period) || "").toString().trim();
-      const n = (ev && (ev.name || ev.title) || "").toString().trim();
-      const key = `${y}|${n}`;
-      if (!__ENSURE_PIN_KEYS.has(key)) return;
-      const ll = __normCoords(coords);
-      if (!ll) { console.warn("addEnsurePin 無座標，略過", key); return; }
+      if (!Array.isArray(allEvents)) return false;
+      let hit = null;
+      for (const ev of allEvents){
+        const y = (ev.yearStr || ev.year || ev.period || "").toString().trim();
+        const n = (ev.name || ev.title || "").toString().trim();
+        const key = `${y}|${n}`;
+        if (KEY_SET.has(key)) { hit = ev; break; }
+      }
+      if (!hit) return false;
+      // 取座標：優先用事件本身，再回退用地區中心
+      let coords = hit.coords || hit.latlng || hit.center || null;
+      if (!coords && hit.region) coords = getRegionCenterSafe(hit.region, null);
+      // 常見地區名（若你的資料將它標記為「中南美洲」）
+      if (!coords && (hit.region === "中南美洲" || /中南美洲|美洲/i.test(hit.region||""))) {
+        coords = {lat: 7.5, lng: -76.0}; // 溫和近似（巴拿馬地峽附近），避免偏移太多
+      }
+      if (!coords) return false;
+
+      const ll = Array.isArray(coords) ? {lat:+coords[0], lng:+coords[1]}
+               : (coords.lat!==undefined && coords.lng!==undefined ? coords : null);
+      if (!ll) return false;
+
       const pin = L.marker(ll, {
-        zIndexOffset: 2000,
+        zIndexOffset: 2200,
         icon: L.divIcon({
           html: `<div class="custom-marker"><div class="marker-pin"></div></div>`,
-          className: 'custom-marker-container',
+          className: 'custom-marker-container ensured-red-pin',
           iconSize: [20, 20],
           iconAnchor: [6, 10]
         })
       });
       pin.addTo(map);
-      console.log("✅ 已補上紅色針點：", key, ll);
-    } catch (e) {
-      console.warn("addEnsurePin 失敗：", e);
+      console.log("✅ Av4 補針點（資料層）", ll);
+      return true;
+    } catch(e){
+      console.warn("ensurePinByDataSearch 失敗：", e);
+      return false;
     }
   }
-}
-// === A方案 v3 End ===
+
+  function ensurePinByDOM(){
+    try {
+      const labels = document.querySelectorAll('.custom-marker .marker-label, .marker-label');
+      for (const label of labels){
+        const text = (label.textContent||"").trim();
+        if (!TARGET_NAMES.has(text)) continue;
+        const container = label.closest('.custom-marker') || label.parentElement;
+        if (!container) continue;
+        const hasPin = container.querySelector('.marker-pin');
+        if (!hasPin){
+          const pin = document.createElement('div');
+          pin.className = 'marker-pin';
+          container.insertBefore(pin, container.firstChild);
+          container.classList.add('ensured-red-pin');
+          console.log("✅ Av4 補針點（DOM）");
+          return true;
+        }
+      }
+      return false;
+    } catch(e){
+      console.warn("ensurePinByDOM 失敗：", e);
+      return false;
+    }
+  }
+
+  // 導出一個一次性接口，供資料載入後呼叫；若你不方便呼叫，也會自啟動
+  window.__ensureAv4RedPin = function(allEvents){
+    const ok = ensurePinByDataSearch(allEvents);
+    if (!ok){
+      // DOM 方式需要等地圖與標籤插入完成
+      setTimeout(()=>{ ensurePinByDOM(); }, 0);
+      setTimeout(()=>{ ensurePinByDOM(); }, 300);
+      setTimeout(()=>{ ensurePinByDOM(); }, 1200);
+    }
+  };
+
+  // 若無人呼叫，嘗試自動啟動（保守輪詢數次）
+  document.addEventListener('DOMContentLoaded', ()=>{
+    let tries = 0;
+    const t = setInterval(()=>{
+      tries++;
+      if (ensurePinByDOM() || tries>10) clearInterval(t);
+    }, 400);
+  });
+})();
+// === A方案 v4 End ===
 
 const regionCircles = {
   '歐洲(西歐)': { center: [48, 5], radius: 700000 },
@@ -787,14 +850,7 @@ if (event.videos.length > 0 || event.images.length > 0) {
 
 if (!__consumeOriginal) if (!__consumeOriginal) { events.push(event); successfulEvents++; }
 console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
-        
-            // A方案 v3 guarded call（避免未宣告變數觸發 ReferenceError）
-            (function(){
-              const __ev  = (typeof ev!=='undefined'?ev:(typeof e!=='undefined'?e:(typeof eventObj!=='undefined'?eventObj:(typeof evt!=='undefined'?evt:null))));
-              const __coords = (typeof coords!=='undefined'?coords:(typeof center!=='undefined'?center:(typeof latlng!=='undefined'?latlng:null)));
-              try { addEnsurePin(__ev, __coords); } catch(_){}
-            })();
-});
+        });
       }
     });
 
@@ -2627,3 +2683,5 @@ window.showImageModal = showImageModal;
 })();
 // === END PATCH ===
 
+
+try{ __ensureAv4RedPin(window.allEvents || window.events || window.processedEvents || null); }catch(_){}
