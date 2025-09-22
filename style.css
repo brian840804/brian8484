@@ -1401,4 +1401,5 @@ html, body {
   border-color: #fff;
 }
 
-.region-circle { fill: rgba(255,0,0,.15) !important; }
+.leaflet-marker-pane { z-index: 1000 !important; }
+.custom-marker-container { z-index: 1001 !important; }
