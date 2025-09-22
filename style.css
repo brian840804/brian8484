@@ -1394,3 +1394,9 @@ html, body {
   margin: 0;
   letter-spacing: -0.01em;
 }
+
+/* 方案B：強化選擇器與變數後援，避免背景被覆蓋 */
+.leaflet-marker-icon .marker-pin, .custom-marker .marker-pin {
+  background: var(--ios-red, #FF3B30) !important;
+  border-color: #fff;
+}
