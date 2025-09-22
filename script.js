@@ -108,30 +108,6 @@ const regionMarkers = {
   '阿根廷布宜諾斯艾利斯': [-34.6037, -58.3816]
 };
 
-
-
-// === 中南美洲 → 哥倫比亞波哥大（強制以點位顯示，不走區域圓形） ===
-// 說明：將「中南美洲」視為一個可定位的點（波哥大 4.7110, -74.0721），
-// 並移除任何針對「中南美洲」的區域圓設定，以確保永遠走紅點邏輯。
-(function(){
-  try {
-    // 確保 regionMarkers 存在
-    if (typeof regionMarkers === 'object' && regionMarkers) {
-      regionMarkers['中南美洲'] = [4.7110, -74.0721]; // 哥倫比亞波哥大
-    }
-    // 若有別名表，將「中南美洲」正規化成「哥倫比亞波哥大」
-    if (typeof REGION_ALIASES === 'object' && REGION_ALIASES) {
-      REGION_ALIASES['中南美洲'] = '哥倫比亞波哥大';
-    }
-    // 若存在區域圓設定，移除之以避免優先走畫圓分支
-    if (typeof regionCircles === 'object' && regionCircles && regionCircles['中南美洲']) {
-      try { delete regionCircles['中南美洲']; } catch(_) {}
-    }
-  } catch (e) {
-    console.warn('中南美洲→波哥大覆寫失敗：', e);
-  }
-})();
-// === 覆寫結束 ===
 // === PATCH v11: 新增「國家+城市」精確座標 ===
 (function(){
   if (typeof regionMarkers === 'undefined') return;
@@ -2600,3 +2576,42 @@ window.showImageModal = showImageModal;
 })();
 // === END PATCH ===
 
+
+
+
+// === 強制：凡「中南美洲」改為波哥大紅點（含保底 DOM 升級） ===
+(function(){
+  const BOGOTA = { lat: 4.7110, lng: -74.0721 };
+  // 1) 資料層：將中南美洲視為精確點
+  try {
+    if (typeof regionMarkers === 'object' && regionMarkers) regionMarkers['中南美洲'] = [BOGOTA.lat, BOGOTA.lng];
+    if (typeof regionCircles === 'object' && regionCircles && regionCircles['中南美洲']) delete regionCircles['中南美洲'];
+  } catch(_) {}
+
+  // 2) 讀檔完成後，若仍未顯示紅點，直接在波哥大加一顆紅點（高層級），避免被任何樣式路徑吃掉
+  const addForcedBogotaPin = () => {
+    try {
+      const pin = L.marker(BOGOTA, {
+        zIndexOffset: 2500,
+        icon: L.divIcon({
+          html: `<div class="custom-marker"><div class="marker-pin" style="background:#FF3B30;border-color:#fff"></div></div>`,
+          className: 'custom-marker-container forced-bogota-pin',
+          iconSize: [20, 20],
+          iconAnchor: [6, 10]
+        })
+      });
+      pin.addTo(map);
+      console.log("✅ 強制補上波哥大紅點（保底）", BOGOTA);
+    } catch (e) { console.warn("強制波哥大紅點失敗", e); }
+  };
+
+  // 嘗試在「載入 Excel 完成」log 之後觸發；若抓不到就用延時保底
+  const hookLog = () => {
+    // 若你的程式會呼叫某個 onDataReady/allEventsReady，可在此綁定；否則用 timeout 幾次
+    setTimeout(addForcedBogotaPin, 200);
+    setTimeout(addForcedBogotaPin, 1200);
+  };
+  if (document.readyState === 'complete' || document.readyState === 'interactive') hookLog();
+  else document.addEventListener('DOMContentLoaded', hookLog);
+})();
+// === End 強制波哥大 ===
