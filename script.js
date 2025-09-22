@@ -1803,32 +1803,6 @@ try {
     });
   }
 } catch(e) { console.warn('beef-arrow draw error', e); }
-
-  
-// === PATCH v26: 當年份為 1700 時，在英國幾何中心顯示一顆紅色標點（與事件無關） ===
-  try {
-    // 先清掉上一輪可能存在的標記
-    if (window.__uk1700Marker && typeof map !== 'undefined' && map.hasLayer(window.__uk1700Marker)) {
-      map.removeLayer(window.__uk1700Marker);
-    }
-    if (currentYear === 1700 && typeof L !== 'undefined' && typeof regionCircles !== 'undefined' && regionCircles['英國']) {
-      window.__uk1700Marker = L.marker(regionCircles['英國'].center, {
-        interactive: false,
-        keyboard: false,
-        bubblingMouseEvents: false,
-        icon: L.divIcon({
-          html: `<div class="custom-marker"><div class="marker-pin"></div></div>`,
-          className: 'custom-marker-container',
-          iconSize: [150, 20],
-          iconAnchor: [6, 10]
-        }),
-        zIndexOffset: 1200
-      });
-      map.addLayer(window.__uk1700Marker);
-    }
-  } catch (e) { console.warn('v26 uk1700 pin error', e); }
-  // === END PATCH v26 ===
-// === END PATCH v26 ===
 }
 
   // 章節選擇器事件
@@ -2576,71 +2550,3 @@ window.showImageModal = showImageModal;
 })();
 // === END PATCH ===
 
-
-
-
-// === 中南美洲→波哥大：地圖實例鉤子 + 早期覆寫 + 保底紅點（穩定版） ===
-(function(){
-  const BOGOTA = { lat: 4.7110, lng: -74.0721 };
-
-  // 1) Hook L.map，抓到真正的 Leaflet Map 實例
-  if (typeof L === 'object' && L && typeof L.map === 'function' && !L.map.__hookedForRef) {
-    const _origMap = L.map;
-    L.map = function(selectorOrEl, options){
-      const m = _origMap.call(this, selectorOrEl, options);
-      try { window.__leafletMapRef = m; } catch(_) {}
-      return m;
-    };
-    L.map.__hookedForRef = true;
-  }
-
-  // 2) 早期覆寫：在 regionCircles/regionMarkers 出現前後都定時處理，直到確定覆寫成功
-  let attempts = 0;
-  const MAX = 40; // 約 8~12 秒
-  const t = setInterval(()=>{
-    attempts++;
-    try {
-      if (typeof regionMarkers === 'object' && regionMarkers) {
-        regionMarkers['中南美洲'] = [BOGOTA.lat, BOGOTA.lng];
-      }
-      if (typeof REGION_ALIASES === 'object' && REGION_ALIASES) {
-        REGION_ALIASES['中南美洲'] = '哥倫比亞波哥大';
-      }
-      if (typeof regionCircles === 'object' && regionCircles && regionCircles['中南美洲']) {
-        delete regionCircles['中南美洲']; // 防止畫圓分支被命中
-      }
-    } catch(_) {}
-    // 若 map 與 markers 覆寫都已就緒，可停止輪詢
-    const mapReady = !!(window.__leafletMapRef && window.__leafletMapRef instanceof L.Map);
-    const overrideReady = (typeof regionMarkers === 'object' && regionMarkers && Array.isArray(regionMarkers['中南美洲']));
-    if (mapReady && overrideReady || attempts > MAX) clearInterval(t);
-  }, 300);
-
-  // 3) 保底：等到 Map 實例出現後，直接在波哥大加一顆紅點（即便前面分支仍畫圓也會被這顆覆蓋）
-  function addForcedPin(){
-    const m = window.__leafletMapRef;
-    if (!m || !(m instanceof L.Map)) return false;
-    try {
-      L.marker(BOGOTA, {
-        zIndexOffset: 2500,
-        icon: L.divIcon({
-          html: `<div class="custom-marker"><div class="marker-pin" style="background:#FF3B30;border-color:#fff"></div></div>`,
-          className: 'custom-marker-container forced-bogota-pin',
-          iconSize: [20, 20],
-          iconAnchor: [6, 10]
-        })
-      }).addTo(m);
-      console.log('✅ 已於 Leaflet Map 實例上補上波哥大紅點');
-      return true;
-    } catch(e){
-      console.warn('補上波哥大紅點失敗：', e);
-      return false;
-    }
-  }
-  let tries = 0;
-  const waiter = setInterval(()=>{
-    tries++;
-    if (addForcedPin() || tries > 20) clearInterval(waiter);
-  }, 350);
-})();
-// === End 穩定版 ===
