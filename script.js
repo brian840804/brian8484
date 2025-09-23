@@ -1310,17 +1310,22 @@ loadingManager.nextStage();
 console.log('📌 創建事件標記...');
 let createdMarkers = 0;
 let createdCircles = 0;
-// 去重：每個區域只建立一個圓形圖層
-let regionCircleLayers = {};
-// 地名別名字典（由外部 JSON 載入）
-let regionAliases = {};
-// 嘗試載入地名字典
-;(async function(){
+
+/** ====== 区域圓形去重與地名別名載入 ====== */
+let regionCircleLayers = {};           // 每個區域只建立一個圓形
+let regionAliases = {};                // 地名別名字典（可在 REGION_DICTIONARY.json 擴充）
+;(async function loadRegionAliases(){
   try {
-    const resp = await fetch('REGION_DICTIONARY.json');
-    if (resp.ok) { regionAliases = await resp.json(); console.log('📖 已載入地名字典', Object.keys(regionAliases).length); }
-  } catch(e){ console.warn('讀取 REGION_DICTIONARY 失敗', e); }
+    const res = await fetch('REGION_DICTIONARY.json');
+    if (res && res.ok) {
+      regionAliases = await res.json();
+      console.log('📖 已載入地名字典', Object.keys(regionAliases).length);
+    }
+  } catch (e) {
+    console.warn('讀取 REGION_DICTIONARY 失敗', e);
+  }
 })();
+/** ====== /區域圓形去重與地名別名載入 ====== */
 
 
 // 聚合邏輯：按位置分組事件
@@ -1328,13 +1333,14 @@ function groupEventsByLocation(events) {
   const groups = new Map();
   
   events.forEach(event => {
-    let locationKey;
     
     // 標準化地區別名
     if (event.region && regionAliases[event.region]) {
       if (regionAliases[event.region] === '__SKIP__') return; // 不渲染此筆
       event.region = regionAliases[event.region];
     }
+    let locationKey;
+    
     if (event.coords) {
       // 精確座標：四捨五入到小數點後2位來聚合附近的點
       locationKey = `coord_${Math.round(event.coords[0] * 100) / 100}_${Math.round(event.coords[1] * 100) / 100}`;
@@ -1552,30 +1558,10 @@ locationGroups.forEach((locationEvents, locationKey) => {
             weight: 2.5,
             stroke: true,
             interactive: false,
-            className: `region-area-${regionName}`
+            className: 'region-area-' + regionName
           });
         }
-      });
-        createdCircles++;
-        // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
-        try {
-          if (Array.isArray(locationEvents) &&
-              locationEvents.some(function(ev){
-                var n = ev && ev.name;
-                var r = ev && ev.region;
-                return (n === '遊牧民族的飲食文化') || (typeof r === 'string' && r.indexOf('東歐') !== -1 && r.indexOf('蒙古') !== -1);
-              })) {
-
-            // 清除舊的走廊（避免跨年份殘留）
-            if (map && typeof map.eachLayer === 'function') {
-              map.eachLayer(function(layer){
-                try {
-                  if (layer && layer.options && layer.options.className === 'corridor-ee-mn') {
-                    if (map.hasLayer(layer)) map.removeLayer(layer);
-                  }
-                } catch(e) {}
-              });
-            }
+      }
 
             var eastEurope = [50.0, 25.0];
             var mongolia = (regionCircles && regionCircles['蒙古'] && regionCircles['蒙古'].center) || [46.0, 103.0];
@@ -1659,9 +1645,9 @@ function returnToPreviousView() {
 function updateVisibleEvents() {
   // 清除既有的區域圓形（去重層）
   try {
-    if (typeof map !== 'undefined' && map.eachLayer) {
-      Object.values(regionCircleLayers || {}).forEach(l => { try { if (map.hasLayer(l)) map.removeLayer(l); } catch(e){} });
-    }
+    Object.values(regionCircleLayers || {}).forEach(layer => {
+      try { if (map && map.hasLayer(layer)) map.removeLayer(layer); } catch(e){}
+    });
   } catch(e) { console.warn('region circle cleanup error', e); }
   regionCircleLayers = {};
 
