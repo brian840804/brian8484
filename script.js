@@ -2584,4 +2584,3 @@ window.showImageModal = showImageModal;
   }
 })();
 // === END PATCH ===
-
