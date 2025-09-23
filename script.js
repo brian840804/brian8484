@@ -741,7 +741,7 @@ if (event.videos.length > 0 || event.images.length > 0) {
 
           } // end dual-skip guard
 
-if (!__consumeOriginal) if (!__consumeOriginal) { events.push(event); successfulEvents++; }
+if (!__consumeOriginal) { events.push(event); successfulEvents++; }
 console.log(`   ✅ 事件已加入: ${event.name} (${event.coords ? '精確座標' : '區域圓形'})`);
         });
       }
@@ -1310,6 +1310,18 @@ loadingManager.nextStage();
 console.log('📌 創建事件標記...');
 let createdMarkers = 0;
 let createdCircles = 0;
+// 去重：每個區域只建立一個圓形圖層
+let regionCircleLayers = {};
+// 地名別名字典（由外部 JSON 載入）
+let regionAliases = {};
+// 嘗試載入地名字典
+;(async function(){
+  try {
+    const resp = await fetch('REGION_DICTIONARY.json');
+    if (resp.ok) { regionAliases = await resp.json(); console.log('📖 已載入地名字典', Object.keys(regionAliases).length); }
+  } catch(e){ console.warn('讀取 REGION_DICTIONARY 失敗', e); }
+})();
+
 
 // 聚合邏輯：按位置分組事件
 function groupEventsByLocation(events) {
@@ -1318,6 +1330,11 @@ function groupEventsByLocation(events) {
   events.forEach(event => {
     let locationKey;
     
+    // 標準化地區別名
+    if (event.region && regionAliases[event.region]) {
+      if (regionAliases[event.region] === '__SKIP__') return; // 不渲染此筆
+      event.region = regionAliases[event.region];
+    }
     if (event.coords) {
       // 精確座標：四捨五入到小數點後2位來聚合附近的點
       locationKey = `coord_${Math.round(event.coords[0] * 100) / 100}_${Math.round(event.coords[1] * 100) / 100}`;
@@ -1523,11 +1540,11 @@ locationGroups.forEach((locationEvents, locationKey) => {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      // 為區域事件添加圓形
+      // 為區域事件添加圓形（去重：每個區域只建立一次）
       if (coords && regionCircles[regionName]) {
         const reg = regionCircles[regionName];
-        locationEvents.forEach(ev => {
-          ev.areaLayer = L.circle(reg.center, {
+        if (!regionCircleLayers[regionName]) {
+          regionCircleLayers[regionName] = L.circle(reg.center, {
             radius: reg.radius,
             color: '#3b82f6',
             fillColor: '#dbeafe',
@@ -1535,9 +1552,10 @@ locationGroups.forEach((locationEvents, locationKey) => {
             weight: 2.5,
             stroke: true,
             interactive: false,
-            className: 'region-circle'
+            className: `region-area-${regionName}`
           });
-        });
+        }
+      });
         createdCircles++;
         // === PATCH (Plan C): 東歐→蒙古 折線＋雙端淡圈（最小更動） ===
         try {
@@ -1639,6 +1657,14 @@ function returnToPreviousView() {
 
   // 更新可見事件
 function updateVisibleEvents() {
+  // 清除既有的區域圓形（去重層）
+  try {
+    if (typeof map !== 'undefined' && map.eachLayer) {
+      Object.values(regionCircleLayers || {}).forEach(l => { try { if (map.hasLayer(l)) map.removeLayer(l); } catch(e){} });
+    }
+  } catch(e) { console.warn('region circle cleanup error', e); }
+  regionCircleLayers = {};
+
 
 // 清除牛肉箭頭殘留（只清這個類別）
 try {
@@ -1711,12 +1737,9 @@ try {
       const regionName = locationKey.replace('region_', '');
       coords = regionCircles[regionName]?.center;
       
-      // 顯示區域圓形
-      locationEvents.forEach(ev => {
-        if (ev.areaLayer) map.addLayer(ev.areaLayer);
-      });
-      
-  // 結尾同步絲路顯示（只在 year=0 顯示）
+      // 顯示區域圓形（去重）
+      if (regionCircleLayers[regionName]) map.addLayer(regionCircleLayers[regionName]);
+      // 結尾同步絲路顯示（只在 year=0 顯示）
 }
     
     if (coords) {
